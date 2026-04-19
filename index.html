@@ -445,6 +445,13 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
     <div class="logo-row"><span style="font-size:22px">🙋</span><span style="font-family:Fraunces,serif;font-size:24px;font-weight:700">My Profile</span></div>
     <p class="tagline">Personalize your experience</p>
   </div>
+  <div id="location-card" style="margin:0 20px 4px;background:var(--teal-light);border:1.5px solid var(--teal);border-radius:var(--radius-sm);padding:12px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0">
+    <span style="font-size:22px">📍</span>
+    <div>
+      <div style="font-size:11px;font-weight:600;color:var(--teal-dark);text-transform:uppercase;letter-spacing:0.05em">GPS Location</div>
+      <div id="location-city" style="font-size:15px;font-weight:600;color:var(--text)">Detecting…</div>
+    </div>
+  </div>
   <div class="scroll-area">
     <div class="profile-section">
       <div class="profile-card">
@@ -623,12 +630,36 @@ function persist() {
 
 // ══ LOCATION ══
 function initLocation() {
-  if (!navigator.geolocation) { document.getElementById('location-banner').classList.add('show'); return; }
+  if (!navigator.geolocation) {
+    document.getElementById('location-banner').classList.add('show');
+    document.getElementById('location-city').textContent = 'GPS unavailable';
+    return;
+  }
   navigator.geolocation.getCurrentPosition(
-    p => { userLat = p.coords.latitude; userLng = p.coords.longitude; },
-    () => document.getElementById('location-banner').classList.add('show'),
+    p => {
+      userLat = p.coords.latitude; userLng = p.coords.longitude;
+      reverseGeocode(userLat, userLng);
+    },
+    () => {
+      document.getElementById('location-banner').classList.add('show');
+      document.getElementById('location-city').textContent = 'San Francisco, CA (default)';
+    },
     { timeout: 8000 }
   );
+}
+
+function reverseGeocode(lat, lng) {
+  fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+    .then(r => r.json())
+    .then(data => {
+      const a = data.address;
+      const city = a.city || a.town || a.village || a.county || 'Unknown area';
+      const state = a.state || '';
+      document.getElementById('location-city').textContent = state ? `${city}, ${state}` : city;
+    })
+    .catch(() => {
+      document.getElementById('location-city').textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    });
 }
 
 function distanceMiles(lat1, lon1, lat2, lon2) {
