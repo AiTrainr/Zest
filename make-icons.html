@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Zest Icon Generator</title>
+<style>body{font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#f8f4ef;gap:16px}</style>
+</head>
+<body>
+<h2>🍋 Zest Icon Generator</h2>
+<p>Click the buttons below to download the two icon files, then move them into your <code>icons/</code> folder.</p>
+<canvas id="c" style="border-radius:24px;box-shadow:0 4px 20px rgba(0,0,0,0.15)"></canvas>
+<div style="display:flex;gap:12px;margin-top:8px">
+  <button onclick="download(192)" style="padding:12px 24px;font-size:15px;border-radius:10px;background:#FF9F1C;color:white;border:none;cursor:pointer">⬇ Download icon-192.png</button>
+  <button onclick="download(512)" style="padding:12px 24px;font-size:15px;border-radius:10px;background:#FF9F1C;color:white;border:none;cursor:pointer">⬇ Download icon-512.png</button>
+</div>
+<p style="color:#888;font-size:13px">After downloading, copy both files into the <strong>icons/</strong> folder inside your Zest project, then commit them.</p>
+
+<script>
+function draw(size) {
+  const c = document.getElementById('c');
+  c.width = size; c.height = size;
+  c.style.width = Math.min(size, 200) + 'px';
+  c.style.height = Math.min(size, 200) + 'px';
+  const ctx = c.getContext('2d');
+  const r = size * 0.22;
+  // background rounded rect
+  ctx.fillStyle = '#FF9F1C';
+  roundRect(ctx, 0, 0, size, size, r);
+  ctx.fill();
+  // lemon emoji
+  ctx.font = `${size * 0.62}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🍋', size / 2, size / 2 + size * 0.03);
+  return c;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h); ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+function download(size) {
+  draw(size);
+  const a = document.createElement('a');
+  a.href = document.getElementById('c').toDataURL('image/png');
+  a.download = `icon-${size}.png`;
+  a.click();
+}
+
+draw(192);
+</script>
+</body>
+</html>

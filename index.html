@@ -13,6 +13,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root {
   --orange: #FF9F1C;
@@ -202,6 +204,18 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
 .pin-name { font-weight: 600; font-size: 14px; flex: 1; }
 .pin-meta { font-size: 12px; color: var(--text2); }
 .pin-rating { font-size: 12px; color: #F5A623; font-weight: 700; }
+#leaflet-map { flex: 1; min-height: 0; z-index: 0; }
+.leaflet-container { font-family: 'DM Sans', sans-serif; }
+.gps-recenter-btn {
+  position: absolute; top: 12px; right: 12px; z-index: 500;
+  background: white; border: 1.5px solid var(--teal); border-radius: 50%;
+  width: 40px; height: 40px; font-size: 18px;
+  display: none; align-items: center; justify-content: center;
+  box-shadow: var(--shadow);
+}
+.gps-recenter-btn.visible { display: flex; }
+.location-card-tap { cursor: pointer; position: relative; }
+.location-card-tap:active { opacity: 0.8; }
 
 /* MODALS */
 .modal-overlay {
@@ -428,11 +442,8 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
     <div class="results-list" id="results-list"></div>
   </div>
 
-  <div id="map-view" class="map-shell" style="display:none">
-    <div class="map-placeholder">
-      <div style="font-size:52px">🗺</div>
-      <p>Nearby spots listed below</p>
-    </div>
+  <div id="map-view" class="map-shell" style="display:none;position:relative">
+    <div id="leaflet-map"></div>
     <div class="map-pin-list" id="map-pin-list"></div>
   </div>
 
@@ -481,11 +492,15 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
     <div class="logo-row"><span style="font-size:22px">🙋</span><span style="font-family:Fraunces,serif;font-size:24px;font-weight:700">My Profile</span></div>
     <p class="tagline">Personalize your experience</p>
   </div>
-  <div id="location-card" style="margin:0 20px 4px;background:var(--teal-light);border:1.5px solid var(--teal);border-radius:var(--radius-sm);padding:12px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0">
+  <div id="location-card" class="location-card-tap" onclick="openLocationModal()" style="margin:0 20px 4px;background:var(--teal-light);border:1.5px solid var(--teal);border-radius:var(--radius-sm);padding:12px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0">
     <span style="font-size:22px">📍</span>
-    <div>
-      <div style="font-size:11px;font-weight:600;color:var(--teal-dark);text-transform:uppercase;letter-spacing:0.05em">GPS Location</div>
+    <div style="flex:1">
+      <div id="location-label" style="font-size:11px;font-weight:600;color:var(--teal-dark);text-transform:uppercase;letter-spacing:0.05em">GPS Location</div>
       <div id="location-city" style="font-size:15px;font-weight:600;color:var(--text)">Detecting…</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+      <span style="font-size:11px;color:var(--teal-dark);font-weight:600">✏️ Change</span>
+      <button id="gps-recenter-btn" class="gps-recenter-btn" onclick="event.stopPropagation();recenterToGPS()" title="Back to GPS">🎯</button>
     </div>
   </div>
   <div class="scroll-area">
@@ -602,6 +617,20 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
   </div>
 </div>
 
+<!-- ══ LOCATION MODAL ══ -->
+<div class="modal-overlay" id="location-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📍 Set Location</div>
+    <div class="modal-subtitle">Search for a city, neighborhood, or address</div>
+    <input class="modal-input" id="location-search-input" type="text" placeholder="e.g. Austin, TX" autocomplete="off"
+      onkeydown="if(event.key==='Enter')searchLocation()">
+    <button class="modal-btn" onclick="searchLocation()">Search 🔍</button>
+    <div id="location-search-results" style="margin-top:12px"></div>
+    <button class="modal-btn-cancel" onclick="closeModal('location-modal')" style="margin-top:8px">Cancel</button>
+  </div>
+</div>
+
 <!-- ══ WHAT'S NEW MODAL ══ -->
 <div class="modal-overlay" id="whats-new-modal">
   <div class="modal-sheet">
@@ -620,7 +649,7 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
 
 <script>
 // ══ BUILD ══
-const BUILD_VERSION = 'v1.9 · 2026-04-19';
+const BUILD_VERSION = 'v2.0 · 2026-04-19';
 
 // ══ GOOGLE PLACES CONFIG ══
 const GOOGLE_KEY = 'AIzaSyBMVZMGbJ6ETdIef0jxswglr3VEj0r8hyM';
@@ -650,6 +679,7 @@ const WHATS_NEW = [
 ];
 
 let currentResults = [];
+let usingGPS = true;
 
 // ══ STATE ══
 let userLat = 37.7749, userLng = -122.4194;
@@ -714,6 +744,9 @@ function initLocation() {
   navigator.geolocation.getCurrentPosition(
     p => {
       userLat = p.coords.latitude; userLng = p.coords.longitude;
+      usingGPS = true;
+      document.getElementById('location-label').textContent = 'GPS Location';
+      document.getElementById('gps-recenter-btn').classList.remove('visible');
       reverseGeocode(userLat, userLng);
     },
     () => {
@@ -736,6 +769,48 @@ function reverseGeocode(lat, lng) {
     .catch(() => {
       document.getElementById('location-city').textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     });
+}
+
+function openLocationModal() {
+  document.getElementById('location-search-input').value = '';
+  document.getElementById('location-search-results').innerHTML = '';
+  openModal('location-modal');
+}
+
+async function searchLocation() {
+  const q = document.getElementById('location-search-input').value.trim();
+  if (!q) return;
+  const resultsEl = document.getElementById('location-search-results');
+  resultsEl.innerHTML = '<div style="text-align:center;padding:12px;color:var(--text2)">Searching…</div>';
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5`);
+    const data = await res.json();
+    resultsEl.innerHTML = data.length
+      ? data.map(r => `<div onclick="selectLocation(${r.lat},${r.lon},${JSON.stringify(r.display_name)})"
+          style="padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);margin-bottom:7px;cursor:pointer;font-size:13px;line-height:1.4">
+          📍 ${r.display_name}</div>`).join('')
+      : '<div style="text-align:center;padding:12px;color:var(--text2)">No results — try a different search.</div>';
+  } catch {
+    resultsEl.innerHTML = '<div style="text-align:center;padding:12px;color:var(--text2)">Search failed. Check your connection.</div>';
+  }
+}
+
+function selectLocation(lat, lng, displayName) {
+  userLat = parseFloat(lat); userLng = parseFloat(lng);
+  usingGPS = false;
+  const short = displayName.split(',').slice(0, 2).join(',').trim();
+  document.getElementById('location-city').textContent = short;
+  document.getElementById('location-label').textContent = 'Custom Location';
+  document.getElementById('gps-recenter-btn').classList.add('visible');
+  closeModal('location-modal');
+  showToast('📍 Location set to ' + displayName.split(',')[0]);
+}
+
+function recenterToGPS() {
+  document.getElementById('location-city').textContent = 'Detecting…';
+  document.getElementById('location-label').textContent = 'GPS Location';
+  document.getElementById('gps-recenter-btn').classList.remove('visible');
+  initLocation();
 }
 
 function distanceMiles(lat1, lon1, lat2, lon2) {
@@ -843,7 +918,9 @@ function normalizePlaces(places, emoji, cuisine) {
       tags:        tags,
       emoji:       emoji,
       website:     p.websiteUri || null,
-      placeId:     p.id
+      placeId:     p.id,
+      lat:         lat,
+      lng:         lng
     };
   });
 }
@@ -954,6 +1031,39 @@ function renderMapPins(results) {
       </div>
       <span class="pin-rating">${r.rating ? r.rating + '★' : '—'}</span>
     </div>`).join('');
+  if (leafletMap) updateLeafletMarkers(results);
+}
+
+// ══ LEAFLET MAP ══
+let leafletMap = null;
+let leafletMarkers = [];
+
+function initLeafletMap() {
+  if (leafletMap) return;
+  leafletMap = L.map('leaflet-map', { zoomControl: true, attributionControl: false }).setView([userLat, userLng], 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(leafletMap);
+}
+
+function updateLeafletMarkers(results) {
+  if (!leafletMap) return;
+  leafletMarkers.forEach(m => m.remove());
+  leafletMarkers = [];
+  L.marker([userLat, userLng], {
+    icon: L.divIcon({ className: '', html: '<div style="font-size:22px;line-height:1">📍</div>', iconSize: [28,28], iconAnchor: [14,28] })
+  }).addTo(leafletMap).bindPopup('You are here');
+  const valid = results.filter(r => r.lat && r.lng);
+  valid.forEach(r => {
+    const m = L.marker([r.lat, r.lng], {
+      icon: L.divIcon({ className: '', html: `<div style="font-size:20px;line-height:1">${r.emoji}</div>`, iconSize: [26,26], iconAnchor: [13,26] })
+    }).addTo(leafletMap).bindPopup(`<b>${r.name}</b><br>${r.rating ? r.rating + '★  ' : ''}${r.price ? '$'.repeat(r.price) : ''}`);
+    leafletMarkers.push(m);
+  });
+  if (valid.length) {
+    const bounds = L.latLngBounds([[userLat, userLng], ...valid.map(r => [r.lat, r.lng])]);
+    leafletMap.fitBounds(bounds, { padding: [30, 30] });
+  } else {
+    leafletMap.setView([userLat, userLng], 14);
+  }
 }
 
 // ══ VIEW TOGGLE ══
@@ -962,6 +1072,10 @@ function setView(v) {
   document.getElementById('map-view').style.display = v === 'map' ? 'flex' : 'none';
   document.getElementById('list-view-btn').classList.toggle('active', v === 'list');
   document.getElementById('map-view-btn').classList.toggle('active', v === 'map');
+  if (v === 'map') {
+    initLeafletMap();
+    setTimeout(() => { leafletMap?.invalidateSize(); updateLeafletMarkers(currentResults); }, 150);
+  }
 }
 
 // ══ REJECT MODAL ══
