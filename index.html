@@ -595,17 +595,16 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
 <div class="toast" id="toast"></div>
 
 <script>
-// ══ FOURSQUARE CONFIG ══
-const FSQ_KEY = '0KPGFLGPHVSHD4U4IF2ZR3NY1VJWHF3PLG0AQHVMAQBVMYRH';
-const MOOD_CATEGORIES = {
-  burger:  '13064',
-  pizza:   '13145',
-  sushi:   '13267,13250',
-  healthy: '13306,13135,13383',
-  mexican: '13303',
-  chinese: '13072',
-  italian: '13236',
-  dessert: '13040,13041,13046'
+// ══ OPENSTREETMAP CONFIG (no API key needed) ══
+const MOOD_OSM = {
+  burger:  { amenities: ['restaurant','fast_food'], cuisines: ['burger','american','fast_food'] },
+  pizza:   { amenities: ['restaurant','fast_food'], cuisines: ['pizza','italian_pizza'] },
+  sushi:   { amenities: ['restaurant'],             cuisines: ['sushi','japanese'] },
+  healthy: { amenities: ['restaurant','cafe'],      cuisines: ['vegetarian','vegan','salad','healthy','organic'] },
+  mexican: { amenities: ['restaurant','fast_food'], cuisines: ['mexican','tex-mex'] },
+  chinese: { amenities: ['restaurant'],             cuisines: ['chinese','asian','cantonese'] },
+  italian: { amenities: ['restaurant'],             cuisines: ['italian','pasta'] },
+  dessert: { amenities: ['ice_cream','cafe'],       cuisines: ['ice_cream','dessert','cake','donut'] }
 };
 const MOOD_EMOJIS = {
   burger:'🍔', pizza:'🍕', sushi:'🍱', healthy:'🥗',
@@ -765,49 +764,59 @@ document.getElementById('find-btn').addEventListener('click', () => {
 async function doSearch() {
   syncPriorities();
   showScreen('results');
-  document.getElementById('results-title').textContent = MOOD_EMOJIS[selectedMood] + ' ' + selectedMood.charAt(0).toUpperCase() + selectedMood.slice(1) + ' Spots';
+  const moodLabel = selectedMood.charAt(0).toUpperCase() + selectedMood.slice(1);
+  document.getElementById('results-title').textContent = MOOD_EMOJIS[selectedMood] + ' ' + moodLabel + ' Spots';
   document.getElementById('results-count').textContent = 'Searching near you…';
   document.getElementById('results-list').innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px"><div class="spinner"></div><p style="color:var(--text2);font-size:14px">Finding ${selectedMood} spots near you…</p></div>`;
 
   try {
-    const cats   = MOOD_CATEGORIES[selectedMood];
-    const meters = Math.round(settings.radiusMiles * 1609.34);
-    const url    = `https://api.foursquare.com/v3/places/search?ll=${userLat},${userLng}&radius=${meters}&categories=${cats}&limit=20&fields=fsq_id,name,categories,rating,price,location,distance`;
-    const res    = await fetch(url, { headers: { 'Authorization': FSQ_KEY } });
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      throw new Error(`HTTP ${res.status}: ${body}`);
-    }
+    const meters  = Math.round((settings.radiusMiles || 5) * 1609.34);
+    const osm     = MOOD_OSM[selectedMood];
+    const amenityUnion = osm.amenities.map(a =>
+      `node[amenity=${a}][cuisine~"${osm.cuisines.join('|')}",i](around:${meters},${userLat},${userLng});`
+    ).join('');
+    // also catch amenity matches without cuisine tag (e.g. ice_cream nodes)
+    const bareUnion = (selectedMood === 'dessert')
+      ? `node[amenity=ice_cream](around:${meters},${userLat},${userLng});` : '';
+    const query = `[out:json][timeout:20];(${amenityUnion}${bareUnion});out body 30;`;
+    const url   = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+
+    const res  = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
     const personalExcludes = notes.filter(n => n.myRating === 1).map(n => n.restaurantId);
     const boosts           = notes.filter(n => n.myRating >= 4).map(n => n.restaurantId);
     const excludedIds      = exclusions.restaurants.map(e => e.id || e);
 
-    let results = (data.results || [])
-      .filter(p => !exclusions.cuisines.includes(selectedMood))
-      .filter(p => !excludedIds.includes(p.fsq_id))
-      .filter(p => !personalExcludes.includes(p.fsq_id))
-      .map(p => ({
-        id:          p.fsq_id,
-        name:        p.name,
-        cuisine:     selectedMood,
-        price:       p.price || 2,
-        rating:      p.rating ? Math.round(p.rating / 2 * 10) / 10 : 4.0,
-        distance:    (p.distance || 0) / 1609.34,
-        description: p.location?.formatted_address || p.location?.address || '',
-        tags:        (p.categories || []).map(c => c.name),
-        emoji:       MOOD_EMOJIS[selectedMood]
-      }));
+    let results = (data.elements || [])
+      .filter(el => el.tags?.name)
+      .filter(el => !exclusions.cuisines.includes(selectedMood))
+      .filter(el => !excludedIds.includes(String(el.id)))
+      .filter(el => !personalExcludes.includes(String(el.id)))
+      .map(el => {
+        const t = el.tags;
+        const addrParts = [t['addr:housenumber'], t['addr:street'], t['addr:city']].filter(Boolean);
+        const tags = [t.cuisine, t.opening_hours, t.phone ? '📞 ' + t.phone : null].filter(Boolean);
+        return {
+          id:          String(el.id),
+          name:        t.name,
+          cuisine:     selectedMood,
+          price:       2,
+          rating:      null,
+          distance:    distanceMiles(userLat, userLng, el.lat, el.lon),
+          description: addrParts.length ? addrParts.join(' ') : (t.cuisine || ''),
+          tags:        tags.slice(0, 3),
+          emoji:       MOOD_EMOJIS[selectedMood],
+          website:     t.website || null
+        };
+      });
 
     results.sort((a, b) => {
       for (const p of priorities) {
-        let va = p.key === 'cost' ? a.price : p.key === 'distance' ? a.distance : a.rating;
-        let vb = p.key === 'cost' ? b.price : p.key === 'distance' ? b.distance : b.rating;
-        if (p.key === 'rating') {
-          if (boosts.includes(a.id)) va += 0.5;
-          if (boosts.includes(b.id)) vb += 0.5;
-        }
+        if (p.key === 'rating') continue; // no rating data from OSM
+        const va = p.key === 'cost' ? a.price : a.distance;
+        const vb = p.key === 'cost' ? b.price : b.distance;
         const cmp = p.dir === 'asc' ? va - vb : vb - va;
         if (cmp !== 0) return cmp;
       }
@@ -839,9 +848,12 @@ function renderResults(results) {
 
   list.innerHTML = results.map(r => {
     const myNote = notes.find(n => n.restaurantId === r.id);
-    const price = '$'.repeat(r.price);
-    const stars = '★'.repeat(Math.floor(r.rating)) + (r.rating % 1 >= 0.5 ? '½' : '');
-    const dist = r.distance ? r.distance.toFixed(1) + ' mi' : '—';
+    const price  = '$'.repeat(r.price);
+    const dist   = r.distance ? r.distance.toFixed(1) + ' mi' : '—';
+    const ratingHtml = r.rating
+      ? `<span class="card-rating">${'★'.repeat(Math.floor(r.rating))} ${r.rating}</span>`
+      : `<span style="font-size:12px;color:var(--text3)">No rating</span>`;
+    const safeId = r.id.replace(/'/g, "\\'");
     return `
     <div class="restaurant-card" data-id="${r.id}">
       <div class="card-emoji-banner">${r.emoji}</div>
@@ -852,14 +864,14 @@ function renderResults(results) {
           <div class="card-price">${price}</div>
         </div>
         <div class="card-meta">
-          <span class="card-rating">${stars} ${r.rating}</span>
+          ${ratingHtml}
           <span class="card-distance">📍 ${dist}</span>
         </div>
         <div class="card-desc">${r.description}</div>
         <div class="card-tags">${r.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
         <div class="card-actions">
-          <button class="btn-reject" onclick="openRejectModal(${r.id})">🚫 Not for me</button>
-          <button class="btn-note" onclick="openNoteModal(${r.id}, ${JSON.stringify(r.name)})">✍️ I went here</button>
+          <button class="btn-reject" onclick="openRejectModal('${safeId}')">🚫 Not for me</button>
+          <button class="btn-note" onclick="openNoteModal('${safeId}', ${JSON.stringify(r.name)})">✍️ I went here</button>
         </div>
       </div>
     </div>`;
