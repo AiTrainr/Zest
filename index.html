@@ -719,12 +719,45 @@ document.getElementById('mood-grid').addEventListener('click', e => {
 });
 
 document.getElementById('adventure-btn').addEventListener('click', () => {
-  const moods = ['burger','pizza','sushi','healthy','mexican','chinese','italian','dessert'];
-  selectedMood = moods[Math.floor(Math.random() * moods.length)];
-  document.querySelectorAll('.mood-chip').forEach(c => c.classList.toggle('selected', c.dataset.mood === selectedMood));
-  showToast('🎲 Going with ' + selectedMood.charAt(0).toUpperCase() + selectedMood.slice(1) + '!');
-  setTimeout(doSearch, 400);
+  selectedMood = 'adventurous';
+  document.querySelectorAll('.mood-chip').forEach(c => c.classList.remove('selected'));
+  showToast('🎲 Surprise me — showing everything nearby!');
+  setTimeout(doSearchAdventurous, 400);
 });
+
+async function doSearchAdventurous() {
+  showScreen('results');
+  document.getElementById('results-title').textContent = '🎲 Adventurous';
+  document.getElementById('results-count').textContent = 'Searching near you…';
+  document.getElementById('results-list').innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px"><div class="spinner"></div><p style="color:var(--text2);font-size:14px">Finding something new…</p></div>`;
+  try {
+    const meters = Math.round((settings.radiusMiles || 5) * 1609.34);
+    const query  = `[out:json][timeout:25];(node[amenity=restaurant](around:${meters},${userLat},${userLng});node[amenity=fast_food](around:${meters},${userLat},${userLng}););out body 60;`;
+    const res    = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data   = await res.json();
+    const excludedIds = exclusions.restaurants.map(e => e.id || e);
+    let results = (data.elements || [])
+      .filter(el => el.tags?.name && !excludedIds.includes(String(el.id)))
+      .map(el => {
+        const t = el.tags;
+        const addrParts = [t['addr:housenumber'], t['addr:street'], t['addr:city']].filter(Boolean);
+        return {
+          id: String(el.id), name: t.name, cuisine: t.cuisine || 'restaurant',
+          price: 2, rating: null,
+          distance: distanceMiles(userLat, userLng, el.lat, el.lon),
+          description: addrParts.join(' ') || t.cuisine || '',
+          tags: [t.cuisine, t.opening_hours].filter(Boolean).slice(0, 2),
+          emoji: '🍽'
+        };
+      })
+      .sort((a, b) => a.distance - b.distance);
+    currentResults = results;
+    renderResults(results);
+  } catch (err) {
+    document.getElementById('results-list').innerHTML = `<div class="empty-state"><div class="empty-icon">😕</div><div class="empty-title">Couldn't load</div><div class="empty-desc">${err.message}</div></div>`;
+  }
+}
 
 // ══ PRIORITIES ══
 const priorityList = document.getElementById('priority-list');
@@ -780,15 +813,9 @@ async function doSearch() {
   document.getElementById('results-list').innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px"><div class="spinner"></div><p style="color:var(--text2);font-size:14px">Finding ${selectedMood} spots near you…</p></div>`;
 
   try {
-    const meters  = Math.round((settings.radiusMiles || 5) * 1609.34);
-    const osm     = MOOD_OSM[selectedMood];
-    const amenityUnion = osm.amenities.map(a =>
-      `node[amenity=${a}][cuisine~"${osm.cuisines.join('|')}",i](around:${meters},${userLat},${userLng});`
-    ).join('');
-    // also catch amenity matches without cuisine tag (e.g. ice_cream nodes)
-    const bareUnion = (selectedMood === 'dessert')
-      ? `node[amenity=ice_cream](around:${meters},${userLat},${userLng});` : '';
-    const query = `[out:json][timeout:20];(${amenityUnion}${bareUnion});out body 30;`;
+    const meters = Math.round((settings.radiusMiles || 5) * 1609.34);
+    // Simple query — no server-side cuisine filtering (avoids 504 timeouts)
+    const query = `[out:json][timeout:25];(node[amenity=restaurant](around:${meters},${userLat},${userLng});node[amenity=fast_food](around:${meters},${userLat},${userLng});node[amenity=ice_cream](around:${meters},${userLat},${userLng});node[amenity=cafe](around:${meters},${userLat},${userLng}););out body 60;`;
     const url   = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
 
     const res  = await fetch(url);
@@ -799,8 +826,17 @@ async function doSearch() {
     const boosts           = notes.filter(n => n.myRating >= 4).map(n => n.restaurantId);
     const excludedIds      = exclusions.restaurants.map(e => e.id || e);
 
+    const moodCuisines = MOOD_OSM[selectedMood].cuisines;
     let results = (data.elements || [])
-      .filter(el => el.tags?.name)
+      .filter(el => {
+        if (!el.tags?.name) return false;
+        const cuisine = (el.tags.cuisine || '').toLowerCase();
+        const amenity = el.tags.amenity || '';
+        // dessert: include ice_cream amenity even without cuisine tag
+        if (selectedMood === 'dessert' && amenity === 'ice_cream') return true;
+        // match any mood cuisine keyword
+        return moodCuisines.some(c => cuisine.includes(c));
+      })
       .filter(el => !exclusions.cuisines.includes(selectedMood))
       .filter(el => !excludedIds.includes(String(el.id)))
       .filter(el => !personalExcludes.includes(String(el.id)))
@@ -851,7 +887,7 @@ function renderResults(results) {
 
   const list = document.getElementById('results-list');
   if (!results.length) {
-    list.innerHTML = `<div class="empty-state"><div class="empty-icon">😅</div><div class="empty-title">Nothing here</div><div class="empty-desc">All restaurants in this category may be excluded. Check your Profile to manage exclusions.</div></div>`;
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">😅</div><div class="empty-title">No ${selectedMood} spots found</div><div class="empty-desc">OpenStreetMap may not have cuisine tags for restaurants in your area yet. Try increasing your search radius in Profile, or tap 🎲 Adventurous to see all nearby restaurants.</div></div>`;
     renderMapPins([]);
     return;
   }
