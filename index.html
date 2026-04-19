@@ -164,6 +164,14 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
   transition: all 0.15s;
 }
 .btn-reject:active { background: var(--bg); }
+.btn-maps {
+  flex: 1; padding: 10px; border-radius: var(--radius-sm);
+  background: var(--teal-light); color: var(--teal-dark);
+  font-size: 13px; font-weight: 600; text-decoration: none;
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity 0.15s;
+}
+.btn-maps:active { opacity: 0.75; }
 .btn-note {
   flex: 1; padding: 10px; border-radius: var(--radius-sm);
   background: var(--orange); color: #fff; font-size: 13px; font-weight: 600;
@@ -358,6 +366,7 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
             <button data-dir="desc">Far→Near</button>
           </div>
         </div>
+        <!-- Rating priority hidden until a ratings API is connected
         <div class="priority-item" draggable="true" data-priority="rating">
           <span class="drag-handle">⠿</span>
           <span class="priority-rank">3</span>
@@ -367,6 +376,7 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
             <button data-dir="asc">Low→High</button>
           </div>
         </div>
+        -->
       </div>
 
       <button class="find-btn" id="find-btn">Find Food 🍽</button>
@@ -871,6 +881,7 @@ function renderResults(results) {
         <div class="card-tags">${r.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
         <div class="card-actions">
           <button class="btn-reject" onclick="openRejectModal('${safeId}')">🚫 Not for me</button>
+          <a class="btn-maps" href="https://maps.google.com/?q=${encodeURIComponent(r.name + (r.description ? ' ' + r.description : ''))}" target="_blank" rel="noopener">🗺 Maps</a>
           <button class="btn-note" onclick="openNoteModal('${safeId}', ${JSON.stringify(r.name)})">✍️ I went here</button>
         </div>
       </div>
