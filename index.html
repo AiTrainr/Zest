@@ -283,6 +283,10 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
 .empty-title { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 600; margin-bottom: 8px; }
 .empty-desc { font-size: 14px; color: var(--text2); line-height: 1.6; }
 
+/* SPINNER */
+.spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--orange); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
 /* TOAST */
 .toast {
   position: fixed; bottom: calc(80px + var(--safe-bottom));
@@ -569,33 +573,30 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
 <div class="toast" id="toast"></div>
 
 <script>
-// ══ RESTAURANT DATA ══
-const RESTAURANTS = [
-  { id:1,  name:"Nopa",               cuisine:"healthy", price:3, rating:4.5, lat:37.7762, lng:-122.4248, description:"Farm-to-table wood-fired fare in a beautiful converted bank building.", tags:["Farm-to-table","Wood-fired","Cocktails"], emoji:"🌿" },
-  { id:2,  name:"In-N-Out Burger",    cuisine:"burger",  price:1, rating:4.4, lat:37.7849, lng:-122.4094, description:"The legendary California chain. Animal-style is non-negotiable.", tags:["Classic","Fast","Animal style"], emoji:"🍔" },
-  { id:3,  name:"Delfina",            cuisine:"italian", price:2, rating:4.6, lat:37.7584, lng:-122.4213, description:"Beloved neighborhood Italian with incredible thin-crust pizza and pasta.", tags:["Pizza","Pasta","BYOB"], emoji:"🍕" },
-  { id:4,  name:"Nopalito",           cuisine:"mexican", price:2, rating:4.5, lat:37.7779, lng:-122.4409, description:"Organic Mexican comfort food with housemade tortillas and mezcal cocktails.", tags:["Organic","Mezcal","Handmade"], emoji:"🌮" },
-  { id:5,  name:"Ippudo",             cuisine:"chinese", price:2, rating:4.3, lat:37.7857, lng:-122.4075, description:"Hakata-style tonkotsu ramen with rich broth and perfectly chewy noodles.", tags:["Ramen","Tonkotsu","Buns"], emoji:"🍜" },
-  { id:6,  name:"Omakase",            cuisine:"sushi",   price:3, rating:4.8, lat:37.7754, lng:-122.3958, description:"18-course omakase journey with the finest seasonal fish. Book weeks ahead.", tags:["Omakase","Premium","Seasonal"], emoji:"🍣" },
-  { id:7,  name:"Tartine Manufactory",cuisine:"healthy", price:2, rating:4.7, lat:37.7601, lng:-122.4137, description:"Iconic bakery and all-day café with open-fire cooking and natural wine.", tags:["Bakery","Pastries","Natural wine"], emoji:"🥐" },
-  { id:8,  name:"Burma Superstar",    cuisine:"chinese", price:2, rating:4.4, lat:37.7760, lng:-122.4645, description:"Celebrated Burmese cuisine. The tea leaf salad is absolutely iconic.", tags:["Burmese","Tea leaf salad","Unique"], emoji:"🥗" },
-  { id:9,  name:"El Farolito",        cuisine:"mexican", price:1, rating:4.5, lat:37.7533, lng:-122.4155, description:"Mission district legend. The best late-night burrito in the city, no contest.", tags:["Burrito","Late night","Cash only"], emoji:"🌯" },
-  { id:10, name:"Humphry Slocombe",   cuisine:"dessert", price:1, rating:4.6, lat:37.7589, lng:-122.4136, description:"Inventive ice cream flavors like Secret Breakfast and foie gras. Iconic.", tags:["Ice cream","Inventive","SF staple"], emoji:"🍦" },
-  { id:11, name:"Che Fico",           cuisine:"italian", price:3, rating:4.6, lat:37.7785, lng:-122.4421, description:"Wood-fired Italian in a stunning space. The cacio e pepe pizza is legendary.", tags:["Wood-fired","Pasta","Cocktails"], emoji:"🍝" },
-  { id:12, name:"4505 Burgers & BBQ", cuisine:"burger",  price:2, rating:4.3, lat:37.7706, lng:-122.4371, description:"Craft burgers from the folks behind the beloved 4505 Meats butcher shop.", tags:["Craft","BBQ","Local"], emoji:"🍖" },
-  { id:13, name:"Hinodeya Ramen",     cuisine:"chinese", price:2, rating:4.4, lat:37.7846, lng:-122.4080, description:"Cozy Japantown ramen spot with inventive vegan-friendly broths.", tags:["Ramen","Vegan-friendly","Japantown"], emoji:"🍜" },
-  { id:14, name:"Nojo Ramen Tavern",  cuisine:"sushi",   price:2, rating:4.2, lat:37.7768, lng:-122.4292, description:"Japanese pub with excellent ramen, small bites, and natural sake.", tags:["Izakaya","Natural sake","Ramen"], emoji:"🍶" },
-  { id:15, name:"Gracias Madre",      cuisine:"mexican", price:2, rating:4.3, lat:37.7648, lng:-122.4225, description:"Plant-based Mexican with stunning cocktails and a beautiful patio.", tags:["Vegan","Plant-based","Cocktails"], emoji:"🌱" },
-  { id:16, name:"Arsicault Bakery",   cuisine:"dessert", price:1, rating:4.8, lat:37.7860, lng:-122.4569, description:"Home of what many call the best croissant in America. Get there early.", tags:["Bakery","Croissants","Worth the wait"], emoji:"🥐" },
-  { id:17, name:"The Bird",           cuisine:"burger",  price:1, rating:4.4, lat:37.7881, lng:-122.4047, description:"Crispy chicken sandwiches that'll ruin every other chicken sandwich for you.", tags:["Chicken","Sandwiches","Quick"], emoji:"🐔" },
-  { id:18, name:"Namu Gaji",          cuisine:"healthy", price:2, rating:4.5, lat:37.7583, lng:-122.4215, description:"Korean-inspired California cuisine with incredible seasonal small plates.", tags:["Korean","Seasonal","Small plates"], emoji:"🥬" },
-];
+// ══ FOURSQUARE CONFIG ══
+const FSQ_KEY = '0KPGFLGPHVSHD4U4IF2ZR3NY1VJWHF3PLG0AQHVMAQBVMYRH';
+const MOOD_CATEGORIES = {
+  burger:  '13064',
+  pizza:   '13145',
+  sushi:   '13267,13250',
+  healthy: '13306,13135,13383',
+  mexican: '13303',
+  chinese: '13072',
+  italian: '13236',
+  dessert: '13040,13041,13046'
+};
+const MOOD_EMOJIS = {
+  burger:'🍔', pizza:'🍕', sushi:'🍱', healthy:'🥗',
+  mexican:'🌮', chinese:'🥡', italian:'🍝', dessert:'🍰'
+};
 
 const WHATS_NEW = [
-  { name:"Sora Sushi", cuisine:"sushi", desc:"Just opened — 12-seat omakase counter with Bay Area sourced fish.", emoji:"🐟" },
-  { name:"Verde Cantina", cuisine:"mexican", desc:"New modern Mexican spot by the team behind El Farolito.", emoji:"🌵" },
-  { name:"Mochi Dreams", cuisine:"dessert", desc:"Artisan mochi ice cream with rotating seasonal flavors.", emoji:"🍡" },
+  { name:"New spots loading…", cuisine:"sushi", desc:"Search a mood to discover what's near you right now.", emoji:"🔍" },
+  { name:"Live data enabled", cuisine:"healthy", desc:"Zest now pulls real restaurants from your GPS location.", emoji:"📍" },
+  { name:"Rate & remember", cuisine:"dessert", desc:"Tap 'I went here' after a meal to save your notes.", emoji:"📓" },
 ];
+
+let currentResults = [];
 
 // ══ STATE ══
 let userLat = 37.7749, userLng = -122.4194;
@@ -738,34 +739,60 @@ document.getElementById('find-btn').addEventListener('click', () => {
   doSearch();
 });
 
-function doSearch() {
+async function doSearch() {
   syncPriorities();
-  const personalExcludes = notes.filter(n => n.myRating === 1).map(n => n.restaurantId);
-  const boosts = notes.filter(n => n.myRating >= 4).map(n => n.restaurantId);
-
-  let results = RESTAURANTS
-    .filter(r => r.cuisine === selectedMood)
-    .filter(r => !exclusions.cuisines.includes(r.cuisine))
-    .filter(r => !exclusions.restaurants.includes(r.id))
-    .filter(r => !personalExcludes.includes(r.id))
-    .map(r => ({ ...r, distance: distanceMiles(userLat, userLng, r.lat, r.lng) }));
-
-  results.sort((a, b) => {
-    for (const p of priorities) {
-      let va = p.key === 'cost' ? a.price : p.key === 'distance' ? a.distance : a.rating;
-      let vb = p.key === 'cost' ? b.price : p.key === 'distance' ? b.distance : b.rating;
-      if (p.key === 'rating') {
-        if (boosts.includes(a.id)) va += 0.5;
-        if (boosts.includes(b.id)) vb += 0.5;
-      }
-      const cmp = p.dir === 'asc' ? va - vb : vb - va;
-      if (cmp !== 0) return cmp;
-    }
-    return 0;
-  });
-
-  renderResults(results);
   showScreen('results');
+  document.getElementById('results-title').textContent = MOOD_EMOJIS[selectedMood] + ' ' + selectedMood.charAt(0).toUpperCase() + selectedMood.slice(1) + ' Spots';
+  document.getElementById('results-count').textContent = 'Searching near you…';
+  document.getElementById('results-list').innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px"><div class="spinner"></div><p style="color:var(--text2);font-size:14px">Finding ${selectedMood} spots near you…</p></div>`;
+
+  try {
+    const cats = MOOD_CATEGORIES[selectedMood];
+    const url = `https://api.foursquare.com/v3/places/search?ll=${userLat},${userLng}&radius=8000&categories=${cats}&limit=20&fields=fsq_id,name,categories,rating,price,location,distance`;
+    const res = await fetch(url, { headers: { 'Authorization': FSQ_KEY } });
+    if (!res.ok) throw new Error('API returned ' + res.status);
+    const data = await res.json();
+
+    const personalExcludes = notes.filter(n => n.myRating === 1).map(n => n.restaurantId);
+    const boosts           = notes.filter(n => n.myRating >= 4).map(n => n.restaurantId);
+    const excludedIds      = exclusions.restaurants.map(e => e.id || e);
+
+    let results = (data.results || [])
+      .filter(p => !exclusions.cuisines.includes(selectedMood))
+      .filter(p => !excludedIds.includes(p.fsq_id))
+      .filter(p => !personalExcludes.includes(p.fsq_id))
+      .map(p => ({
+        id:          p.fsq_id,
+        name:        p.name,
+        cuisine:     selectedMood,
+        price:       p.price || 2,
+        rating:      p.rating ? Math.round(p.rating / 2 * 10) / 10 : 4.0,
+        distance:    (p.distance || 0) / 1609.34,
+        description: p.location?.formatted_address || p.location?.address || '',
+        tags:        (p.categories || []).map(c => c.name),
+        emoji:       MOOD_EMOJIS[selectedMood]
+      }));
+
+    results.sort((a, b) => {
+      for (const p of priorities) {
+        let va = p.key === 'cost' ? a.price : p.key === 'distance' ? a.distance : a.rating;
+        let vb = p.key === 'cost' ? b.price : p.key === 'distance' ? b.distance : b.rating;
+        if (p.key === 'rating') {
+          if (boosts.includes(a.id)) va += 0.5;
+          if (boosts.includes(b.id)) vb += 0.5;
+        }
+        const cmp = p.dir === 'asc' ? va - vb : vb - va;
+        if (cmp !== 0) return cmp;
+      }
+      return 0;
+    });
+
+    currentResults = results;
+    renderResults(results);
+  } catch (err) {
+    document.getElementById('results-list').innerHTML = `<div class="empty-state"><div class="empty-icon">😕</div><div class="empty-title">Couldn't load results</div><div class="empty-desc">Check your connection and try again.</div></div>`;
+    document.getElementById('results-count').textContent = 'Error loading results';
+  }
 }
 
 // ══ RENDER RESULTS ══
@@ -841,10 +868,11 @@ function openRejectModal(id) {
 }
 document.getElementById('reject-confirm-btn').addEventListener('click', () => {
   const reason = document.getElementById('reject-reason').value;
-  const r = RESTAURANTS.find(r => r.id === currentRestaurantId);
+  const r = currentResults.find(r => r.id === currentRestaurantId);
   if (!r) return;
   if (reason === 'restaurant') {
-    if (!exclusions.restaurants.includes(currentRestaurantId)) exclusions.restaurants.push(currentRestaurantId);
+    const excludedIds = exclusions.restaurants.map(e => e.id || e);
+    if (!excludedIds.includes(currentRestaurantId)) exclusions.restaurants.push({ id: currentRestaurantId, name: r.name });
     showToast('Got it! Skipping ' + r.name + ' 👍');
   } else {
     if (!exclusions.cuisines.includes(r.cuisine)) exclusions.cuisines.push(r.cuisine);
@@ -887,7 +915,7 @@ function updateStars(n) {
   document.querySelectorAll('.star-btn').forEach(b => b.classList.toggle('lit', parseInt(b.dataset.star) <= n));
 }
 document.getElementById('note-save-btn').addEventListener('click', () => {
-  const r = RESTAURANTS.find(r => r.id === currentRestaurantId);
+  const r = currentResults.find(r => r.id === currentRestaurantId);
   if (!r) return;
   const orders = document.getElementById('note-orders').value.trim();
   const text   = document.getElementById('note-text').value.trim();
@@ -897,8 +925,9 @@ document.getElementById('note-save-btn').addEventListener('click', () => {
     itemsOrdered: orders ? orders.split(',').map(s => s.trim()) : [],
     myRating: noteStarRating, notes: text
   };
-  if (noteStarRating === 1 && !exclusions.restaurants.includes(currentRestaurantId)) {
-    exclusions.restaurants.push(currentRestaurantId);
+  if (noteStarRating === 1) {
+    const excludedIds = exclusions.restaurants.map(e => e.id || e);
+    if (!excludedIds.includes(currentRestaurantId)) exclusions.restaurants.push({ id: currentRestaurantId, name: r.name });
     showToast('1 star — added to exclusions 🚫');
   }
   const idx = notes.findIndex(n => n.restaurantId === currentRestaurantId);
@@ -944,9 +973,10 @@ function renderProfile() {
 function renderExclusions() {
   const el = document.getElementById('exclusions-list');
   const all = [
-    ...exclusions.restaurants.map(id => {
-      const r = RESTAURANTS.find(r => r.id === id);
-      return { label: r ? r.name : 'Unknown', type: 'Restaurant', key: 'r_' + id };
+    ...exclusions.restaurants.map(e => {
+      const id   = e.id   || e;
+      const name = e.name || 'Restaurant';
+      return { label: name, type: 'Restaurant', key: 'r_' + id };
     }),
     ...exclusions.cuisines.map(c => ({
       label: c.charAt(0).toUpperCase() + c.slice(1) + ' cuisine', type: 'Cuisine', key: 'c_' + c
@@ -960,8 +990,12 @@ function renderExclusions() {
     </div>`).join('');
 }
 function removeExclusion(key) {
-  if (key.startsWith('r_')) exclusions.restaurants = exclusions.restaurants.filter(id => id !== parseInt(key.slice(2)));
-  else exclusions.cuisines = exclusions.cuisines.filter(c => c !== key.slice(2));
+  if (key.startsWith('r_')) {
+    const id = key.slice(2);
+    exclusions.restaurants = exclusions.restaurants.filter(e => (e.id || e) !== id);
+  } else {
+    exclusions.cuisines = exclusions.cuisines.filter(c => c !== key.slice(2));
+  }
   persist(); renderExclusions();
 }
 document.getElementById('budget-row').addEventListener('click', e => {
