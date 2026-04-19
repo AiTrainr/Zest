@@ -366,7 +366,6 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
             <button data-dir="desc">Far→Near</button>
           </div>
         </div>
-        <!-- Rating priority hidden until a ratings API is connected
         <div class="priority-item" draggable="true" data-priority="rating">
           <span class="drag-handle">⠿</span>
           <span class="priority-rank">3</span>
@@ -376,7 +375,6 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
             <button data-dir="asc">Low→High</button>
           </div>
         </div>
-        -->
       </div>
 
       <button class="find-btn" id="find-btn">Find Food 🍽</button>
@@ -607,18 +605,23 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
 
 <script>
 // ══ BUILD ══
-const BUILD_VERSION = 'v1.7 · 2026-04-19';
+const BUILD_VERSION = 'v1.8 · 2026-04-19';
 
-// ══ OPENSTREETMAP CONFIG (no API key needed) ══
-const MOOD_OSM = {
-  burger:  { amenities: ['restaurant','fast_food'], cuisines: ['burger','american','fast_food'] },
-  pizza:   { amenities: ['restaurant','fast_food'], cuisines: ['pizza','italian_pizza'] },
-  sushi:   { amenities: ['restaurant'],             cuisines: ['sushi','japanese'] },
-  healthy: { amenities: ['restaurant','cafe'],      cuisines: ['vegetarian','vegan','salad','healthy','organic'] },
-  mexican: { amenities: ['restaurant','fast_food'], cuisines: ['mexican','tex-mex'] },
-  chinese: { amenities: ['restaurant'],             cuisines: ['chinese','asian','cantonese'] },
-  italian: { amenities: ['restaurant'],             cuisines: ['italian','pasta'] },
-  dessert: { amenities: ['ice_cream','cafe'],       cuisines: ['ice_cream','dessert','cake','donut'] }
+// ══ GOOGLE PLACES CONFIG ══
+const GOOGLE_KEY = 'AIzaSyBMVZMGbJ6ETdIef0jxswglr3VEj0r8hyM';
+const MOOD_GOOGLE_TYPES = {
+  burger:  ['hamburger_restaurant','fast_food_restaurant'],
+  pizza:   ['pizza_restaurant'],
+  sushi:   ['sushi_restaurant','japanese_restaurant','ramen_restaurant'],
+  healthy: ['vegan_restaurant','vegetarian_restaurant','salad_shop'],
+  mexican: ['mexican_restaurant'],
+  chinese: ['chinese_restaurant'],
+  italian: ['italian_restaurant'],
+  dessert: ['ice_cream_shop','bakery','cafe','dessert_shop']
+};
+const PRICE_MAP = {
+  'PRICE_LEVEL_FREE':0,'PRICE_LEVEL_INEXPENSIVE':1,'PRICE_LEVEL_MODERATE':2,
+  'PRICE_LEVEL_EXPENSIVE':3,'PRICE_LEVEL_VERY_EXPENSIVE':4
 };
 const MOOD_EMOJIS = {
   burger:'🍔', pizza:'🍕', sushi:'🍱', healthy:'🥗',
@@ -665,27 +668,25 @@ function persist() {
   saveData('zest_settings',   settings);
 }
 
-// ══ OVERPASS FETCH (tries multiple mirrors on timeout) ══
-const OVERPASS_MIRRORS = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
-  'https://overpass.openstreetmap.fr/api/interpreter'
-];
-async function overpassFetch(query) {
-  for (const mirror of OVERPASS_MIRRORS) {
-    try {
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 18000);
-      const res = await fetch(`${mirror}?data=${encodeURIComponent(query)}`, { signal: ctrl.signal });
-      clearTimeout(timer);
-      if (res.ok) return res.json();
-      if (res.status !== 504 && res.status !== 502 && res.status !== 429) throw new Error(`HTTP ${res.status}`);
-    } catch (e) {
-      if (e.name === 'AbortError' || OVERPASS_MIRRORS.indexOf(mirror) < OVERPASS_MIRRORS.length - 1) continue;
-      throw e;
-    }
-  }
-  throw new Error('All map servers timed out. Try again in a moment.');
+// ══ GOOGLE PLACES FETCH ══
+async function googlePlacesFetch(types, radiusMeters) {
+  const res = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': GOOGLE_KEY,
+      'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.priceLevel,places.formattedAddress,places.location,places.types,places.websiteUri,places.nationalPhoneNumber'
+    },
+    body: JSON.stringify({
+      includedTypes: types,
+      maxResultCount: 20,
+      locationRestriction: {
+        circle: { center: { latitude: userLat, longitude: userLng }, radius: radiusMeters }
+      }
+    })
+  });
+  if (!res.ok) { const t = await res.text(); throw new Error(`HTTP ${res.status}: ${t}`); }
+  return res.json();
 }
 
 // ══ LOCATION ══
@@ -759,23 +760,12 @@ async function doSearchAdventurous() {
   document.getElementById('results-list').innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px"><div class="spinner"></div><p style="color:var(--text2);font-size:14px">Finding something new…</p></div>`;
   try {
     const meters = Math.round((settings.radiusMiles || 5) * 1609.34);
-    const query  = `[out:json][timeout:25];(node[amenity=restaurant](around:${meters},${userLat},${userLng});node[amenity=fast_food](around:${meters},${userLat},${userLng}););out body 60;`;
-    const data   = await overpassFetch(query);
+    const allTypes = [...new Set(Object.values(MOOD_GOOGLE_TYPES).flat())];
+    const data = await googlePlacesFetch(allTypes, meters);
     const excludedIds = exclusions.restaurants.map(e => e.id || e);
-    let results = (data.elements || [])
-      .filter(el => el.tags?.name && !excludedIds.includes(String(el.id)))
-      .map(el => {
-        const t = el.tags;
-        const addrParts = [t['addr:housenumber'], t['addr:street'], t['addr:city']].filter(Boolean);
-        return {
-          id: String(el.id), name: t.name, cuisine: t.cuisine || 'restaurant',
-          price: 2, rating: null,
-          distance: distanceMiles(userLat, userLng, el.lat, el.lon),
-          description: addrParts.join(' ') || t.cuisine || '',
-          tags: [t.cuisine, t.opening_hours].filter(Boolean).slice(0, 2),
-          emoji: '🍽'
-        };
-      })
+    const personalExcludes = notes.filter(n => n.myRating === 1).map(n => n.restaurantId);
+    let results = normalizePlaces(data.places || [], '🍽', 'restaurant')
+      .filter(r => !excludedIds.includes(r.id) && !personalExcludes.includes(r.id))
       .sort((a, b) => a.distance - b.distance);
     currentResults = results;
     renderResults(results);
@@ -829,6 +819,29 @@ document.getElementById('find-btn').addEventListener('click', () => {
   doSearch();
 });
 
+function normalizePlaces(places, emoji, cuisine) {
+  return places.map(p => {
+    const lat = p.location?.latitude, lng = p.location?.longitude;
+    const price = PRICE_MAP[p.priceLevel] ?? 2;
+    const rating = p.rating ? Math.round(p.rating * 10) / 10 : null;
+    const tags = [p.nationalPhoneNumber ? '📞 ' + p.nationalPhoneNumber : null].filter(Boolean);
+    return {
+      id:          p.id,
+      name:        p.displayName?.text || 'Unknown',
+      cuisine:     cuisine,
+      price:       price,
+      rating:      rating,
+      ratingCount: p.userRatingCount || 0,
+      distance:    (lat && lng) ? distanceMiles(userLat, userLng, lat, lng) : 0,
+      description: p.formattedAddress || '',
+      tags:        tags,
+      emoji:       emoji,
+      website:     p.websiteUri || null,
+      placeId:     p.id
+    };
+  });
+}
+
 async function doSearch() {
   syncPriorities();
   showScreen('results');
@@ -838,52 +851,25 @@ async function doSearch() {
   document.getElementById('results-list').innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px"><div class="spinner"></div><p style="color:var(--text2);font-size:14px">Finding ${selectedMood} spots near you…</p></div>`;
 
   try {
+    if (exclusions.cuisines.includes(selectedMood)) {
+      renderResults([]);
+      return;
+    }
     const meters = Math.round((settings.radiusMiles || 5) * 1609.34);
-    // Simple query — no server-side cuisine filtering (avoids 504 timeouts)
-    const query = `[out:json][timeout:25];(node[amenity=restaurant](around:${meters},${userLat},${userLng});node[amenity=fast_food](around:${meters},${userLat},${userLng});node[amenity=ice_cream](around:${meters},${userLat},${userLng});node[amenity=cafe](around:${meters},${userLat},${userLng}););out body 60;`;
-    const data  = await overpassFetch(query);
+    const types  = MOOD_GOOGLE_TYPES[selectedMood] || ['restaurant'];
+    const data   = await googlePlacesFetch(types, meters);
 
     const personalExcludes = notes.filter(n => n.myRating === 1).map(n => n.restaurantId);
-    const boosts           = notes.filter(n => n.myRating >= 4).map(n => n.restaurantId);
     const excludedIds      = exclusions.restaurants.map(e => e.id || e);
 
-    const moodCuisines = MOOD_OSM[selectedMood].cuisines;
-    let results = (data.elements || [])
-      .filter(el => {
-        if (!el.tags?.name) return false;
-        const cuisine = (el.tags.cuisine || '').toLowerCase();
-        const amenity = el.tags.amenity || '';
-        // dessert: include ice_cream amenity even without cuisine tag
-        if (selectedMood === 'dessert' && amenity === 'ice_cream') return true;
-        // match any mood cuisine keyword
-        return moodCuisines.some(c => cuisine.includes(c));
-      })
-      .filter(el => !exclusions.cuisines.includes(selectedMood))
-      .filter(el => !excludedIds.includes(String(el.id)))
-      .filter(el => !personalExcludes.includes(String(el.id)))
-      .map(el => {
-        const t = el.tags;
-        const addrParts = [t['addr:housenumber'], t['addr:street'], t['addr:city']].filter(Boolean);
-        const tags = [t.cuisine, t.opening_hours, t.phone ? '📞 ' + t.phone : null].filter(Boolean);
-        return {
-          id:          String(el.id),
-          name:        t.name,
-          cuisine:     selectedMood,
-          price:       2,
-          rating:      null,
-          distance:    distanceMiles(userLat, userLng, el.lat, el.lon),
-          description: addrParts.length ? addrParts.join(' ') : (t.cuisine || ''),
-          tags:        tags.slice(0, 3),
-          emoji:       MOOD_EMOJIS[selectedMood],
-          website:     t.website || null
-        };
-      });
+    let results = normalizePlaces(data.places || [], MOOD_EMOJIS[selectedMood], selectedMood)
+      .filter(r => !excludedIds.includes(r.id))
+      .filter(r => !personalExcludes.includes(r.id));
 
     results.sort((a, b) => {
       for (const p of priorities) {
-        if (p.key === 'rating') continue; // no rating data from OSM
-        const va = p.key === 'cost' ? a.price : a.distance;
-        const vb = p.key === 'cost' ? b.price : b.distance;
+        const va = p.key === 'cost' ? a.price : p.key === 'rating' ? (a.rating || 0) : a.distance;
+        const vb = p.key === 'cost' ? b.price : p.key === 'rating' ? (b.rating || 0) : b.distance;
         const cmp = p.dir === 'asc' ? va - vb : vb - va;
         if (cmp !== 0) return cmp;
       }
@@ -908,19 +894,23 @@ function renderResults(results) {
 
   const list = document.getElementById('results-list');
   if (!results.length) {
-    list.innerHTML = `<div class="empty-state"><div class="empty-icon">😅</div><div class="empty-title">No ${selectedMood} spots found</div><div class="empty-desc">OpenStreetMap may not have cuisine tags for restaurants in your area yet. Try increasing your search radius in Profile, or tap 🎲 Adventurous to see all nearby restaurants.</div></div>`;
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">😅</div><div class="empty-title">No ${selectedMood} spots found</div><div class="empty-desc">No results in your area for this mood. Try increasing your search radius in Profile, or tap 🎲 Adventurous to see everything nearby.</div></div>`;
     renderMapPins([]);
     return;
   }
 
   list.innerHTML = results.map(r => {
     const myNote = notes.find(n => n.restaurantId === r.id);
-    const price  = '$'.repeat(r.price);
+    const price  = r.price ? '$'.repeat(r.price) : '—';
     const dist   = r.distance ? r.distance.toFixed(1) + ' mi' : '—';
+    const stars  = r.rating ? '★'.repeat(Math.round(r.rating)) + '☆'.repeat(5 - Math.round(r.rating)) : '';
     const ratingHtml = r.rating
-      ? `<span class="card-rating">${'★'.repeat(Math.floor(r.rating))} ${r.rating}</span>`
+      ? `<span class="card-rating"><span style="color:var(--orange)">${stars}</span> <strong>${r.rating}</strong><span style="color:var(--text3);font-size:11px"> (${r.ratingCount?.toLocaleString()})</span></span>`
       : `<span style="font-size:12px;color:var(--text3)">No rating</span>`;
-    const safeId = r.id.replace(/'/g, "\\'");
+    const mapsUrl = r.placeId
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.name)}&query_place_id=${r.placeId}`
+      : `https://maps.google.com/?q=${encodeURIComponent(r.name + ' ' + r.description)}`;
+    const safeId = CSS.escape(r.id);
     return `
     <div class="restaurant-card" data-id="${r.id}">
       <div class="card-emoji-banner">${r.emoji}</div>
@@ -937,9 +927,9 @@ function renderResults(results) {
         <div class="card-desc">${r.description}</div>
         <div class="card-tags">${r.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
         <div class="card-actions">
-          <button class="btn-reject" onclick="openRejectModal('${safeId}')">🚫 Not for me</button>
-          <a class="btn-maps" href="https://maps.google.com/?q=${encodeURIComponent(r.name + (r.description ? ' ' + r.description : ''))}" target="_blank" rel="noopener">🗺 Maps</a>
-          <button class="btn-note" onclick="openNoteModal('${safeId}', ${JSON.stringify(r.name)})">✍️ I went here</button>
+          <button class="btn-reject" onclick="openRejectModal(${JSON.stringify(r.id)})">🚫 Not for me</button>
+          <a class="btn-maps" href="${mapsUrl}" target="_blank" rel="noopener">🗺 Maps</a>
+          <button class="btn-note" onclick="openNoteModal(${JSON.stringify(r.id)}, ${JSON.stringify(r.name)})">✍️ I went here</button>
         </div>
       </div>
     </div>`;
@@ -954,9 +944,9 @@ function renderMapPins(results) {
       <span class="pin-emoji">${r.emoji}</span>
       <div style="flex:1">
         <div class="pin-name">${r.name}</div>
-        <div class="pin-meta">${r.distance.toFixed(1)} mi · ${'$'.repeat(r.price)}</div>
+        <div class="pin-meta">${r.distance.toFixed(1)} mi · ${'$'.repeat(r.price || 1)}</div>
       </div>
-      <span class="pin-rating">${r.rating}★</span>
+      <span class="pin-rating">${r.rating ? r.rating + '★' : '—'}</span>
     </div>`).join('');
 }
 
