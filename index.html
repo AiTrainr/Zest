@@ -1,186 +1,998 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Zest">
-  <meta name="theme-color" content="#FF9F1C">
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <title>Zest — Find your flavor.</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="css/style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Zest">
+<meta name="theme-color" content="#FF9F1C">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Zest — Find your flavor.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --orange: #FF9F1C;
+  --orange-dark: #e8860a;
+  --orange-light: #FFF3E0;
+  --teal: #2EC4B6;
+  --teal-dark: #1fa99c;
+  --teal-light: #E0F7F5;
+  --bg: #FAFAF8;
+  --card: #FFFFFF;
+  --text: #1A1A18;
+  --text2: #6B6B66;
+  --text3: #A8A8A2;
+  --border: rgba(26,26,24,0.1);
+  --shadow: 0 2px 16px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; background: var(--bg); font-family: 'DM Sans', sans-serif; color: var(--text); }
+body { display: flex; flex-direction: column; }
+button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; background: none; }
+
+.status-bar { height: var(--safe-top); background: var(--bg); flex-shrink: 0; }
+
+/* SCREENS */
+.screen { display: none; flex-direction: column; height: 100%; overflow: hidden; }
+.screen.active { display: flex; }
+.scroll-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.scroll-area::-webkit-scrollbar { display: none; }
+
+/* BOTTOM NAV */
+.bottom-nav {
+  display: flex; background: var(--card);
+  border-top: 1px solid var(--border);
+  padding-bottom: var(--safe-bottom); flex-shrink: 0;
+}
+.nav-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 10px 0 8px;
+  color: var(--text3); font-size: 10px; gap: 3px; transition: color 0.15s;
+}
+.nav-btn.active { color: var(--orange); }
+.nav-btn svg { width: 22px; height: 22px; }
+
+/* LOCATION BANNER */
+.location-banner {
+  background: var(--orange-light); border-bottom: 1px solid rgba(255,159,28,0.3);
+  padding: 10px 20px; font-size: 12px; color: var(--orange-dark);
+  display: none; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.location-banner.show { display: flex; }
+
+/* PAGE HEADER */
+.page-header { padding: 20px 20px 0; }
+.logo-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.logo-icon { font-size: 26px; }
+.logo-text { font-family: 'Fraunces', serif; font-size: 28px; font-weight: 700; color: var(--orange); }
+.tagline { font-size: 13px; color: var(--text2); margin-bottom: 16px; }
+.section-label { font-size: 12px; font-weight: 600; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px; }
+
+/* MOOD CHIPS */
+.mood-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px; }
+.mood-chip {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 10px 4px; border-radius: var(--radius-sm); border: 1.5px solid var(--border);
+  background: var(--card); gap: 4px; font-size: 11px; color: var(--text2); font-weight: 500;
+  transition: all 0.15s;
+}
+.mood-chip .mood-emoji { font-size: 22px; line-height: 1; }
+.mood-chip.selected { border-color: var(--orange); background: var(--orange-light); color: var(--orange-dark); }
+.mood-chip:active { transform: scale(0.95); }
+
+/* BUTTONS */
+.find-btn {
+  width: 100%; padding: 16px; border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--orange), var(--orange-dark));
+  color: #fff; font-family: 'Fraunces', serif; font-size: 18px; font-weight: 600;
+  margin-bottom: 10px; transition: opacity 0.15s;
+}
+.find-btn:active { opacity: 0.85; }
+.adventure-btn {
+  width: 100%; padding: 14px; border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+  color: #fff; font-size: 15px; font-weight: 600;
+  margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: opacity 0.15s;
+}
+.adventure-btn:active { opacity: 0.85; }
+
+/* PRIORITY */
+.priority-section { margin-bottom: 20px; }
+.priority-item {
+  display: flex; align-items: center; background: var(--card);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 10px 12px; margin-bottom: 8px; gap: 10px; cursor: grab;
+  transition: box-shadow 0.15s;
+}
+.priority-item.dragging { box-shadow: var(--shadow-lg); opacity: 0.9; }
+.drag-handle { color: var(--text3); font-size: 16px; flex-shrink: 0; }
+.priority-rank {
+  width: 22px; height: 22px; border-radius: 50%; background: var(--orange);
+  color: #fff; font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.priority-name { font-weight: 600; font-size: 14px; flex: 1; }
+.priority-toggle { display: flex; border: 1px solid var(--border); border-radius: 20px; overflow: hidden; flex-shrink: 0; }
+.priority-toggle button {
+  padding: 5px 10px; font-size: 11px; color: var(--text2);
+  transition: all 0.15s; white-space: nowrap;
+}
+.priority-toggle button.active { background: var(--orange); color: #fff; font-weight: 600; }
+
+/* RESULTS HEADER */
+.results-header { padding: 16px 20px 0; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.results-title { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 700; }
+.results-count { font-size: 13px; color: var(--text2); margin-top: 2px; }
+.view-toggle { display: flex; border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden; }
+.view-btn { padding: 6px 12px; font-size: 16px; transition: background 0.15s; }
+.view-btn.active { background: var(--orange); }
+
+/* RESTAURANT CARDS */
+.results-list { padding: 12px 20px 20px; }
+.restaurant-card {
+  background: var(--card); border-radius: var(--radius); border: 1px solid var(--border);
+  margin-bottom: 14px; overflow: hidden; box-shadow: var(--shadow);
+}
+.card-emoji-banner {
+  width: 100%; height: 140px; display: flex; align-items: center; justify-content: center;
+  font-size: 56px; background: linear-gradient(135deg, var(--orange-light), var(--teal-light));
+}
+.card-body { padding: 14px; }
+.card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 6px; }
+.card-name { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 600; flex: 1; }
+.card-price { font-size: 13px; font-weight: 600; color: var(--orange-dark); margin-left: 8px; flex-shrink: 0; }
+.card-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.card-rating { display: flex; align-items: center; gap: 3px; font-size: 13px; font-weight: 600; color: #F5A623; }
+.card-distance { font-size: 12px; color: var(--text2); background: var(--bg); padding: 2px 8px; border-radius: 20px; }
+.card-desc { font-size: 13px; color: var(--text2); line-height: 1.5; margin-bottom: 10px; }
+.card-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+.tag { font-size: 11px; padding: 3px 8px; border-radius: 20px; background: var(--bg); color: var(--text2); border: 1px solid var(--border); }
+.card-actions { display: flex; gap: 8px; }
+.btn-reject {
+  flex: 1; padding: 10px; border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border); font-size: 13px; font-weight: 600; color: var(--text);
+  transition: all 0.15s;
+}
+.btn-reject:active { background: var(--bg); }
+.btn-note {
+  flex: 1; padding: 10px; border-radius: var(--radius-sm);
+  background: var(--orange); color: #fff; font-size: 13px; font-weight: 600;
+  transition: opacity 0.15s;
+}
+.btn-note:active { opacity: 0.85; }
+.notes-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--teal-dark); background: var(--teal-light);
+  padding: 3px 8px; border-radius: 20px; margin-bottom: 8px;
+}
+
+/* MAP */
+.map-shell { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.map-placeholder { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; background: #e8e0d4; }
+.map-placeholder p { color: var(--text2); font-size: 14px; }
+.map-pin-list { background: var(--card); border-radius: var(--radius) var(--radius) 0 0; padding: 16px; max-height: 220px; overflow-y: auto; }
+.map-pin-list::-webkit-scrollbar { display: none; }
+.pin-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.pin-row:last-child { border-bottom: none; }
+.pin-emoji { font-size: 20px; }
+.pin-name { font-weight: 600; font-size: 14px; flex: 1; }
+.pin-meta { font-size: 12px; color: var(--text2); }
+.pin-rating { font-size: 12px; color: #F5A623; font-weight: 700; }
+
+/* MODALS */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000;
+  display: flex; align-items: flex-end; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.25s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal-sheet {
+  background: var(--card); border-radius: var(--radius) var(--radius) 0 0;
+  padding: 20px 20px calc(20px + var(--safe-bottom)); width: 100%; max-width: 480px;
+  transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  max-height: 88vh; overflow-y: auto;
+}
+.modal-sheet::-webkit-scrollbar { display: none; }
+.modal-overlay.open .modal-sheet { transform: translateY(0); }
+.modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
+.modal-title { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+.modal-subtitle { font-size: 14px; color: var(--text2); margin-bottom: 20px; }
+.modal-label { font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 6px; display: block; }
+.modal-select, .modal-input, .modal-textarea {
+  width: 100%; padding: 12px; border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border); font-family: 'DM Sans', sans-serif;
+  font-size: 14px; background: var(--bg); color: var(--text);
+  margin-bottom: 14px; outline: none; appearance: none; -webkit-appearance: none;
+}
+.modal-select:focus, .modal-input:focus, .modal-textarea:focus { border-color: var(--orange); }
+.modal-textarea { height: 90px; resize: none; }
+.star-rating { display: flex; gap: 8px; margin-bottom: 16px; }
+.star-btn { font-size: 28px; opacity: 0.25; transition: opacity 0.1s; padding: 0; }
+.star-btn.lit { opacity: 1; }
+.modal-btn {
+  width: 100%; padding: 14px; border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--orange), var(--orange-dark));
+  color: #fff; font-size: 16px; font-weight: 600;
+  margin-top: 4px; transition: opacity 0.15s;
+}
+.modal-btn:active { opacity: 0.85; }
+.modal-btn-cancel {
+  width: 100%; padding: 12px; border-radius: var(--radius);
+  border: 1.5px solid var(--border); font-size: 14px; font-weight: 500; color: var(--text);
+  margin-top: 8px;
+}
+
+/* PROFILE */
+.profile-section { padding: 16px 20px 20px; }
+.profile-card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 16px; margin-bottom: 12px; }
+.profile-card-title { font-weight: 700; font-size: 15px; margin-bottom: 12px; }
+.pref-chip-row { display: flex; flex-wrap: wrap; gap: 7px; }
+.pref-chip {
+  padding: 7px 13px; border-radius: 20px; border: 1.5px solid var(--border);
+  font-size: 13px; color: var(--text2); transition: all 0.15s; background: var(--card);
+}
+.pref-chip.selected { border-color: var(--teal); background: var(--teal-light); color: var(--teal-dark); font-weight: 600; }
+.budget-row { display: flex; gap: 8px; }
+.budget-chip {
+  flex: 1; padding: 10px; border-radius: var(--radius-sm); border: 1.5px solid var(--border);
+  text-align: center; font-size: 14px; font-weight: 600; color: var(--text2);
+  background: var(--card); transition: all 0.15s;
+}
+.budget-chip.selected { border-color: var(--orange); background: var(--orange-light); color: var(--orange-dark); }
+.exclusion-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.exclusion-item:last-child { border-bottom: none; }
+.exclusion-name { font-size: 14px; }
+.exclusion-type { font-size: 11px; color: var(--text3); }
+.remove-btn { font-size: 18px; color: var(--text3); padding: 4px 8px; }
+.export-btn {
+  width: 100%; padding: 13px; border-radius: var(--radius);
+  border: 1.5px solid var(--teal); background: transparent;
+  color: var(--teal-dark); font-size: 15px; font-weight: 600; margin-top: 4px;
+}
+
+/* NOTES */
+.notes-list { padding: 12px 20px 20px; }
+.note-card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 14px; margin-bottom: 12px; }
+.note-restaurant { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600; }
+.note-date { font-size: 11px; color: var(--text3); margin: 2px 0 8px; }
+.note-stars { color: #F5A623; font-size: 14px; margin-bottom: 6px; }
+.note-items { font-size: 13px; color: var(--text2); margin-bottom: 4px; }
+.note-body { font-size: 13px; color: var(--text); font-style: italic; }
+
+/* WHAT'S NEW */
+.new-item { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.new-item:last-child { border-bottom: none; }
+.new-emoji-box { width: 50px; height: 50px; border-radius: var(--radius-sm); background: var(--orange-light); display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0; }
+.new-name { font-weight: 600; font-size: 15px; }
+.new-desc { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.new-badge { display: inline-block; font-size: 10px; font-weight: 700; background: var(--orange); color: #fff; padding: 2px 7px; border-radius: 10px; margin-top: 4px; }
+
+/* EMPTY STATE */
+.empty-state { text-align: center; padding: 60px 30px; }
+.empty-icon { font-size: 52px; margin-bottom: 12px; }
+.empty-title { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+.empty-desc { font-size: 14px; color: var(--text2); line-height: 1.6; }
+
+/* TOAST */
+.toast {
+  position: fixed; bottom: calc(80px + var(--safe-bottom));
+  left: 20px; right: 20px; background: var(--text); color: #fff;
+  padding: 12px 16px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 500;
+  z-index: 2000; text-align: center;
+  transform: translateY(20px); opacity: 0; transition: all 0.3s; pointer-events: none;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+</style>
 </head>
 <body>
 
-<!-- ── Header ── -->
-<header>
-  <div class="logo">
-    <span class="logo-icon">🍋</span>
-    <div>
-      <h1>Zest</h1>
-      <p>Find your flavor.</p>
+<div class="status-bar"></div>
+
+<!-- ══ HOME SCREEN ══ -->
+<div class="screen active" id="screen-home">
+  <div class="location-banner" id="location-banner">
+    📍 Using approximate location. Enable GPS for best results.
+  </div>
+  <div class="scroll-area">
+    <div class="page-header">
+      <div class="logo-row">
+        <span class="logo-icon">🍋</span>
+        <span class="logo-text">Zest</span>
+      </div>
+      <p class="tagline">Find your flavor.</p>
+
+      <p class="section-label">What are you craving?</p>
+      <div class="mood-grid" id="mood-grid">
+        <button class="mood-chip" data-mood="burger"><span class="mood-emoji">🍔</span>Burger</button>
+        <button class="mood-chip" data-mood="pizza"><span class="mood-emoji">🍕</span>Pizza</button>
+        <button class="mood-chip" data-mood="sushi"><span class="mood-emoji">🍱</span>Sushi</button>
+        <button class="mood-chip" data-mood="healthy"><span class="mood-emoji">🥗</span>Healthy</button>
+        <button class="mood-chip" data-mood="mexican"><span class="mood-emoji">🌮</span>Mexican</button>
+        <button class="mood-chip" data-mood="chinese"><span class="mood-emoji">🥡</span>Chinese</button>
+        <button class="mood-chip" data-mood="italian"><span class="mood-emoji">🍝</span>Italian</button>
+        <button class="mood-chip" data-mood="dessert"><span class="mood-emoji">🍰</span>Dessert</button>
+      </div>
+
+      <button class="adventure-btn" id="adventure-btn">🎲 I'm Feeling Adventurous</button>
+
+      <p class="section-label">Sort by priority <span style="font-size:10px;color:var(--text3)">(drag to reorder)</span></p>
+      <div class="priority-section" id="priority-list">
+        <div class="priority-item" draggable="true" data-priority="cost">
+          <span class="drag-handle">⠿</span>
+          <span class="priority-rank">1</span>
+          <span class="priority-name">💰 Cost</span>
+          <div class="priority-toggle">
+            <button class="active" data-dir="asc">Low→High</button>
+            <button data-dir="desc">High→Low</button>
+          </div>
+        </div>
+        <div class="priority-item" draggable="true" data-priority="distance">
+          <span class="drag-handle">⠿</span>
+          <span class="priority-rank">2</span>
+          <span class="priority-name">📍 Distance</span>
+          <div class="priority-toggle">
+            <button class="active" data-dir="asc">Near→Far</button>
+            <button data-dir="desc">Far→Near</button>
+          </div>
+        </div>
+        <div class="priority-item" draggable="true" data-priority="rating">
+          <span class="drag-handle">⠿</span>
+          <span class="priority-rank">3</span>
+          <span class="priority-name">⭐ Rating</span>
+          <div class="priority-toggle">
+            <button class="active" data-dir="desc">High→Low</button>
+            <button data-dir="asc">Low→High</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="find-btn" id="find-btn">Find Food 🍽</button>
     </div>
   </div>
-  <div class="header-actions">
-    <button class="icon-btn" onclick="toggleSettings()" title="Filters & Priorities">⚙️</button>
+  <nav class="bottom-nav">
+    <button class="nav-btn active" onclick="showScreen('home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home
+    </button>
+    <button class="nav-btn" onclick="showScreen('results')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover
+    </button>
+    <button class="nav-btn" onclick="showScreen('notes')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>My Notes
+    </button>
+    <button class="nav-btn" onclick="showScreen('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile
+    </button>
+  </nav>
+</div>
+
+<!-- ══ RESULTS SCREEN ══ -->
+<div class="screen" id="screen-results">
+  <div class="results-header">
+    <div>
+      <div class="results-title" id="results-title">Results</div>
+      <div class="results-count" id="results-count"></div>
+    </div>
+    <div class="view-toggle">
+      <button class="view-btn active" id="list-view-btn" onclick="setView('list')">☰</button>
+      <button class="view-btn" id="map-view-btn" onclick="setView('map')">🗺</button>
+    </div>
   </div>
-</header>
 
-<!-- ── Location Bar ── -->
-<div class="location-bar" id="location-bar">📍 Detecting location...</div>
-
-<!-- ── Settings Panel ── -->
-<div class="settings-panel" id="settings-panel">
-  <div class="settings-inner">
-    <h3>Priority Order <small style="font-weight:400;color:#aaa">(drag to reorder)</small></h3>
-    <ul id="priority-list" style="list-style:none">
-      <li class="priority-item" draggable="true" data-priority="cost">
-        <span class="drag-handle">⠿</span>
-        <span class="priority-label">Cost</span>
-        <select id="cost-dir">
-          <option value="asc">Low → High</option>
-          <option value="desc">High → Low</option>
-        </select>
-      </li>
-      <li class="priority-item" draggable="true" data-priority="distance">
-        <span class="drag-handle">⠿</span>
-        <span class="priority-label">Distance</span>
-        <select id="dist-dir">
-          <option value="asc">Close → Far</option>
-          <option value="desc">Far → Close</option>
-        </select>
-      </li>
-      <li class="priority-item" draggable="true" data-priority="rating">
-        <span class="drag-handle">⠿</span>
-        <span class="priority-label">Rating</span>
-        <select id="rating-dir">
-          <option value="desc">High → Low</option>
-          <option value="asc">Low → High</option>
-        </select>
-      </li>
-    </ul>
-    <button class="btn-export" onclick="Storage.exportAll()">💾 Export My Data to Files</button>
+  <div id="list-view" class="scroll-area">
+    <div class="results-list" id="results-list"></div>
   </div>
-</div>
 
-<!-- ── Mood Selector ── -->
-<div class="section">
-  <p class="section-title">What are you craving?</p>
-  <div class="mood-grid">
-    <button class="mood-chip" data-mood="burger" onclick="runSearch('burger')">
-      <span class="mood-icon">🍔</span><span class="mood-label">Burger</span>
-    </button>
-    <button class="mood-chip" data-mood="pizza" onclick="runSearch('pizza')">
-      <span class="mood-icon">🍕</span><span class="mood-label">Pizza</span>
-    </button>
-    <button class="mood-chip" data-mood="sushi" onclick="runSearch('sushi')">
-      <span class="mood-icon">🍣</span><span class="mood-label">Sushi</span>
-    </button>
-    <button class="mood-chip" data-mood="healthy" onclick="runSearch('healthy')">
-      <span class="mood-icon">🥗</span><span class="mood-label">Healthy</span>
-    </button>
-    <button class="mood-chip" data-mood="mexican" onclick="runSearch('mexican')">
-      <span class="mood-icon">🌮</span><span class="mood-label">Mexican</span>
-    </button>
-    <button class="mood-chip" data-mood="chinese" onclick="runSearch('chinese')">
-      <span class="mood-icon">🥡</span><span class="mood-label">Chinese</span>
-    </button>
-    <button class="mood-chip" data-mood="italian" onclick="runSearch('italian')">
-      <span class="mood-icon">🍝</span><span class="mood-label">Italian</span>
-    </button>
-    <button class="mood-chip" data-mood="dessert" onclick="runSearch('dessert')">
-      <span class="mood-icon">🍦</span><span class="mood-label">Dessert</span>
-    </button>
+  <div id="map-view" class="map-shell" style="display:none">
+    <div class="map-placeholder">
+      <div style="font-size:52px">🗺</div>
+      <p>Nearby spots listed below</p>
+    </div>
+    <div class="map-pin-list" id="map-pin-list"></div>
   </div>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn" onclick="showScreen('home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home
+    </button>
+    <button class="nav-btn active" onclick="showScreen('results')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover
+    </button>
+    <button class="nav-btn" onclick="showScreen('notes')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>My Notes
+    </button>
+    <button class="nav-btn" onclick="showScreen('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile
+    </button>
+  </nav>
 </div>
 
-<!-- ── Action Buttons ── -->
-<div class="actions-row">
-  <button class="btn-primary" onclick="runSearch(state.selectedMood)">🔍 Find Food</button>
-  <button class="btn-adventure" onclick="adventurous()">🎲 Adventurous</button>
+<!-- ══ NOTES SCREEN ══ -->
+<div class="screen" id="screen-notes">
+  <div class="page-header" style="padding-bottom:12px;flex-shrink:0">
+    <div class="logo-row"><span style="font-size:22px">📓</span><span style="font-family:Fraunces,serif;font-size:24px;font-weight:700">My Notes</span></div>
+    <p class="tagline">Your personal food diary</p>
+  </div>
+  <div class="scroll-area"><div class="notes-list" id="notes-list"></div></div>
+  <nav class="bottom-nav">
+    <button class="nav-btn" onclick="showScreen('home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home
+    </button>
+    <button class="nav-btn" onclick="showScreen('results')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover
+    </button>
+    <button class="nav-btn active" onclick="showScreen('notes')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>My Notes
+    </button>
+    <button class="nav-btn" onclick="showScreen('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile
+    </button>
+  </nav>
 </div>
 
-<!-- ── View Toggle ── -->
-<div class="view-toggle">
-  <button class="view-btn active" id="btn-list" onclick="switchView('list')">☰ List</button>
-  <button class="view-btn" id="btn-map" onclick="switchView('map')">🗺 Map</button>
+<!-- ══ PROFILE SCREEN ══ -->
+<div class="screen" id="screen-profile">
+  <div class="page-header" style="padding-bottom:12px;flex-shrink:0">
+    <div class="logo-row"><span style="font-size:22px">🙋</span><span style="font-family:Fraunces,serif;font-size:24px;font-weight:700">My Profile</span></div>
+    <p class="tagline">Personalize your experience</p>
+  </div>
+  <div class="scroll-area">
+    <div class="profile-section">
+      <div class="profile-card">
+        <div class="profile-card-title">💸 Budget Preference</div>
+        <div class="budget-row" id="budget-row">
+          <button class="budget-chip" data-budget="1">$<br><span style="font-size:10px;color:var(--text3)">Budget</span></button>
+          <button class="budget-chip selected" data-budget="2">$$<br><span style="font-size:10px;color:var(--text3)">Mid-range</span></button>
+          <button class="budget-chip" data-budget="3">$$$<br><span style="font-size:10px;color:var(--text3)">Splurge</span></button>
+        </div>
+      </div>
+      <div class="profile-card">
+        <div class="profile-card-title">🥦 Dietary Restrictions</div>
+        <div class="pref-chip-row" id="dietary-chips">
+          <button class="pref-chip" data-diet="vegan">🌱 Vegan</button>
+          <button class="pref-chip" data-diet="vegetarian">🥕 Vegetarian</button>
+          <button class="pref-chip" data-diet="gluten-free">🌾 Gluten-Free</button>
+          <button class="pref-chip" data-diet="dairy-free">🥛 Dairy-Free</button>
+          <button class="pref-chip" data-diet="nut-free">🥜 Nut-Free</button>
+          <button class="pref-chip" data-diet="halal">☪️ Halal</button>
+          <button class="pref-chip" data-diet="kosher">✡️ Kosher</button>
+        </div>
+      </div>
+      <div class="profile-card">
+        <div class="profile-card-title">❤️ Favorite Cuisines</div>
+        <div class="pref-chip-row" id="fav-cuisine-chips">
+          <button class="pref-chip" data-fav="burger">🍔 Burgers</button>
+          <button class="pref-chip" data-fav="pizza">🍕 Pizza</button>
+          <button class="pref-chip" data-fav="sushi">🍱 Sushi</button>
+          <button class="pref-chip" data-fav="healthy">🥗 Healthy</button>
+          <button class="pref-chip" data-fav="mexican">🌮 Mexican</button>
+          <button class="pref-chip" data-fav="chinese">🥡 Chinese</button>
+          <button class="pref-chip" data-fav="italian">🍝 Italian</button>
+          <button class="pref-chip" data-fav="dessert">🍰 Dessert</button>
+        </div>
+      </div>
+      <div class="profile-card">
+        <div class="profile-card-title">🚫 My Exclusions</div>
+        <div id="exclusions-list"><p style="font-size:13px;color:var(--text3)">No exclusions yet. Tap "Not for me" on any restaurant.</p></div>
+      </div>
+      <button class="export-btn" id="export-btn">📤 Export My Data</button>
+      <p style="font-size:11px;color:var(--text3);text-align:center;margin-top:8px">Stored locally on your device. Export saves a copy to Files.</p>
+    </div>
+  </div>
+  <nav class="bottom-nav">
+    <button class="nav-btn" onclick="showScreen('home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home
+    </button>
+    <button class="nav-btn" onclick="showScreen('results')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover
+    </button>
+    <button class="nav-btn" onclick="showScreen('notes')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>My Notes
+    </button>
+    <button class="nav-btn active" onclick="showScreen('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile
+    </button>
+  </nav>
 </div>
 
-<!-- ── Results ── -->
-<div id="results-container">
-  <div class="empty-state"><p>Pick a mood above to discover restaurants near you 🍽️</p></div>
-</div>
-
-<!-- ── Toast ── -->
-<div id="toast"></div>
-
-<!-- ── Reject Modal ── -->
+<!-- ══ REJECT MODAL ══ -->
 <div class="modal-overlay" id="reject-modal">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <p class="modal-title">No worries! We'll find something better.</p>
-    <p class="modal-subtitle">Help us learn your taste:</p>
-    <select class="modal-select">
+    <div style="font-size:32px;margin-bottom:8px">🤔</div>
+    <div class="modal-title">No worries!</div>
+    <div class="modal-subtitle">We'll find something better. What didn't work?</div>
+    <label class="modal-label">Tell us why</label>
+    <select class="modal-select" id="reject-reason">
       <option value="restaurant">I don't like this specific restaurant</option>
       <option value="cuisine">I don't like this cuisine genre</option>
     </select>
-    <button class="modal-btn modal-btn-primary" onclick="confirmReject()">Got it, skip this</button>
-    <button class="modal-btn modal-btn-cancel" onclick="closeModal('reject-modal')">Cancel</button>
+    <button class="modal-btn" id="reject-confirm-btn">Got it, skip this one</button>
+    <button class="modal-btn-cancel" onclick="closeModal('reject-modal')">Actually, never mind</button>
   </div>
 </div>
 
-<!-- ── Note Modal ── -->
+<!-- ══ NOTE MODAL ══ -->
 <div class="modal-overlay" id="note-modal">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <p class="modal-title">I went here!</p>
-    <p class="modal-restaurant-name"></p>
-    <label class="form-label">What did you order?</label>
-    <input class="form-input" id="note-items" type="text" placeholder="e.g. Double cheeseburger, sweet potato fries">
-    <label class="form-label">Your personal rating</label>
-    <div class="star-row" id="star-row">
-      <button class="star-btn" data-val="1" onclick="document.getElementById('note-rating').value=1;updateStarDisplay(1)">★</button>
-      <button class="star-btn" data-val="2" onclick="document.getElementById('note-rating').value=2;updateStarDisplay(2)">★</button>
-      <button class="star-btn" data-val="3" onclick="document.getElementById('note-rating').value=3;updateStarDisplay(3)">★</button>
-      <button class="star-btn" data-val="4" onclick="document.getElementById('note-rating').value=4;updateStarDisplay(4)">★</button>
-      <button class="star-btn" data-val="5" onclick="document.getElementById('note-rating').value=5;updateStarDisplay(5)">★</button>
+    <div style="font-size:32px;margin-bottom:8px">✍️</div>
+    <div class="modal-title" id="note-modal-title">Add a Note</div>
+    <div class="modal-subtitle">Great choice! Leave yourself some notes for next time.</div>
+    <label class="modal-label">What did you order?</label>
+    <input type="text" class="modal-input" id="note-orders" placeholder="e.g. Double cheeseburger, sweet potato fries">
+    <label class="modal-label">Your personal rating</label>
+    <div class="star-rating" id="star-rating">
+      <button class="star-btn" data-star="1">⭐</button>
+      <button class="star-btn" data-star="2">⭐</button>
+      <button class="star-btn" data-star="3">⭐</button>
+      <button class="star-btn" data-star="4">⭐</button>
+      <button class="star-btn" data-star="5">⭐</button>
     </div>
-    <input type="hidden" id="note-rating" value="5">
-    <label class="form-label">Notes (optional)</label>
-    <textarea class="form-textarea" id="note-text" placeholder="e.g. Get the spicy tuna roll, avoid the edamame"></textarea>
-    <button class="modal-btn modal-btn-primary" onclick="saveNote()">Save Note 💾</button>
-    <button class="modal-btn modal-btn-cancel" onclick="closeModal('note-modal')">Cancel</button>
+    <label class="modal-label">Notes (optional)</label>
+    <textarea class="modal-textarea" id="note-text" placeholder="e.g. Get the spicy tuna roll, avoid the edamame..."></textarea>
+    <button class="modal-btn" id="note-save-btn">💾 Save Note</button>
+    <button class="modal-btn-cancel" onclick="closeModal('note-modal')">Cancel</button>
   </div>
 </div>
 
-<!-- ── What's New Modal ── -->
-<div class="modal-overlay" id="whatsnew-modal">
+<!-- ══ WHAT'S NEW MODAL ══ -->
+<div class="modal-overlay" id="whats-new-modal">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <p class="modal-title">🆕 What's New Nearby</p>
-    <div class="whatsnew-list"></div>
-    <p class="whatsnew-note"></p>
-    <button class="modal-btn modal-btn-primary" onclick="closeModal('whatsnew-modal')">Let's eat! 🍽️</button>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <span style="font-size:24px">✨</span>
+      <div class="modal-title" style="margin-bottom:0">What's New Nearby</div>
+    </div>
+    <div class="modal-subtitle" id="whats-new-subtitle">Fresh spots just opened in your area!</div>
+    <div id="whats-new-list"></div>
+    <button class="modal-btn" onclick="closeModal('whats-new-modal')" style="margin-top:16px">Let's Eat! 🍽</button>
   </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="js/data.js"></script>
-<script src="js/storage.js"></script>
-<script src="js/app.js"></script>
+<div class="toast" id="toast"></div>
 
 <script>
-  // Update location bar after init
-  document.addEventListener('DOMContentLoaded', async () => {
-    const bar = document.getElementById('location-bar');
-    const loc = await detectLocation();
-    bar.textContent = loc.fallback
-      ? '📍 San Francisco, CA (default — enable GPS for accuracy)'
-      : `📍 Location detected (${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)})`;
+// ══ RESTAURANT DATA ══
+const RESTAURANTS = [
+  { id:1,  name:"Nopa",               cuisine:"healthy", price:3, rating:4.5, lat:37.7762, lng:-122.4248, description:"Farm-to-table wood-fired fare in a beautiful converted bank building.", tags:["Farm-to-table","Wood-fired","Cocktails"], emoji:"🌿" },
+  { id:2,  name:"In-N-Out Burger",    cuisine:"burger",  price:1, rating:4.4, lat:37.7849, lng:-122.4094, description:"The legendary California chain. Animal-style is non-negotiable.", tags:["Classic","Fast","Animal style"], emoji:"🍔" },
+  { id:3,  name:"Delfina",            cuisine:"italian", price:2, rating:4.6, lat:37.7584, lng:-122.4213, description:"Beloved neighborhood Italian with incredible thin-crust pizza and pasta.", tags:["Pizza","Pasta","BYOB"], emoji:"🍕" },
+  { id:4,  name:"Nopalito",           cuisine:"mexican", price:2, rating:4.5, lat:37.7779, lng:-122.4409, description:"Organic Mexican comfort food with housemade tortillas and mezcal cocktails.", tags:["Organic","Mezcal","Handmade"], emoji:"🌮" },
+  { id:5,  name:"Ippudo",             cuisine:"chinese", price:2, rating:4.3, lat:37.7857, lng:-122.4075, description:"Hakata-style tonkotsu ramen with rich broth and perfectly chewy noodles.", tags:["Ramen","Tonkotsu","Buns"], emoji:"🍜" },
+  { id:6,  name:"Omakase",            cuisine:"sushi",   price:3, rating:4.8, lat:37.7754, lng:-122.3958, description:"18-course omakase journey with the finest seasonal fish. Book weeks ahead.", tags:["Omakase","Premium","Seasonal"], emoji:"🍣" },
+  { id:7,  name:"Tartine Manufactory",cuisine:"healthy", price:2, rating:4.7, lat:37.7601, lng:-122.4137, description:"Iconic bakery and all-day café with open-fire cooking and natural wine.", tags:["Bakery","Pastries","Natural wine"], emoji:"🥐" },
+  { id:8,  name:"Burma Superstar",    cuisine:"chinese", price:2, rating:4.4, lat:37.7760, lng:-122.4645, description:"Celebrated Burmese cuisine. The tea leaf salad is absolutely iconic.", tags:["Burmese","Tea leaf salad","Unique"], emoji:"🥗" },
+  { id:9,  name:"El Farolito",        cuisine:"mexican", price:1, rating:4.5, lat:37.7533, lng:-122.4155, description:"Mission district legend. The best late-night burrito in the city, no contest.", tags:["Burrito","Late night","Cash only"], emoji:"🌯" },
+  { id:10, name:"Humphry Slocombe",   cuisine:"dessert", price:1, rating:4.6, lat:37.7589, lng:-122.4136, description:"Inventive ice cream flavors like Secret Breakfast and foie gras. Iconic.", tags:["Ice cream","Inventive","SF staple"], emoji:"🍦" },
+  { id:11, name:"Che Fico",           cuisine:"italian", price:3, rating:4.6, lat:37.7785, lng:-122.4421, description:"Wood-fired Italian in a stunning space. The cacio e pepe pizza is legendary.", tags:["Wood-fired","Pasta","Cocktails"], emoji:"🍝" },
+  { id:12, name:"4505 Burgers & BBQ", cuisine:"burger",  price:2, rating:4.3, lat:37.7706, lng:-122.4371, description:"Craft burgers from the folks behind the beloved 4505 Meats butcher shop.", tags:["Craft","BBQ","Local"], emoji:"🍖" },
+  { id:13, name:"Hinodeya Ramen",     cuisine:"chinese", price:2, rating:4.4, lat:37.7846, lng:-122.4080, description:"Cozy Japantown ramen spot with inventive vegan-friendly broths.", tags:["Ramen","Vegan-friendly","Japantown"], emoji:"🍜" },
+  { id:14, name:"Nojo Ramen Tavern",  cuisine:"sushi",   price:2, rating:4.2, lat:37.7768, lng:-122.4292, description:"Japanese pub with excellent ramen, small bites, and natural sake.", tags:["Izakaya","Natural sake","Ramen"], emoji:"🍶" },
+  { id:15, name:"Gracias Madre",      cuisine:"mexican", price:2, rating:4.3, lat:37.7648, lng:-122.4225, description:"Plant-based Mexican with stunning cocktails and a beautiful patio.", tags:["Vegan","Plant-based","Cocktails"], emoji:"🌱" },
+  { id:16, name:"Arsicault Bakery",   cuisine:"dessert", price:1, rating:4.8, lat:37.7860, lng:-122.4569, description:"Home of what many call the best croissant in America. Get there early.", tags:["Bakery","Croissants","Worth the wait"], emoji:"🥐" },
+  { id:17, name:"The Bird",           cuisine:"burger",  price:1, rating:4.4, lat:37.7881, lng:-122.4047, description:"Crispy chicken sandwiches that'll ruin every other chicken sandwich for you.", tags:["Chicken","Sandwiches","Quick"], emoji:"🐔" },
+  { id:18, name:"Namu Gaji",          cuisine:"healthy", price:2, rating:4.5, lat:37.7583, lng:-122.4215, description:"Korean-inspired California cuisine with incredible seasonal small plates.", tags:["Korean","Seasonal","Small plates"], emoji:"🥬" },
+];
+
+const WHATS_NEW = [
+  { name:"Sora Sushi", cuisine:"sushi", desc:"Just opened — 12-seat omakase counter with Bay Area sourced fish.", emoji:"🐟" },
+  { name:"Verde Cantina", cuisine:"mexican", desc:"New modern Mexican spot by the team behind El Farolito.", emoji:"🌵" },
+  { name:"Mochi Dreams", cuisine:"dessert", desc:"Artisan mochi ice cream with rotating seasonal flavors.", emoji:"🍡" },
+];
+
+// ══ STATE ══
+let userLat = 37.7749, userLng = -122.4194;
+let selectedMood = null;
+let currentRestaurantId = null;
+let noteStarRating = 0;
+let priorities = [
+  { key:'cost', dir:'asc' },
+  { key:'distance', dir:'asc' },
+  { key:'rating', dir:'desc' },
+];
+
+// ══ STORAGE ══
+function loadData(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+}
+function saveData(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch(e) {}
+}
+
+let exclusions = loadData('zest_exclusions', { restaurants: [], cuisines: [] });
+let notes      = loadData('zest_notes',      []);
+let profile    = loadData('zest_profile',    { budget: 2, dietary: [], favorites: [] });
+let settings   = loadData('zest_settings',   { whatsNewCount: 0 });
+
+function persist() {
+  saveData('zest_exclusions', exclusions);
+  saveData('zest_notes',      notes);
+  saveData('zest_profile',    profile);
+  saveData('zest_settings',   settings);
+}
+
+// ══ LOCATION ══
+function initLocation() {
+  if (!navigator.geolocation) { document.getElementById('location-banner').classList.add('show'); return; }
+  navigator.geolocation.getCurrentPosition(
+    p => { userLat = p.coords.latitude; userLng = p.coords.longitude; },
+    () => document.getElementById('location-banner').classList.add('show'),
+    { timeout: 8000 }
+  );
+}
+
+function distanceMiles(lat1, lon1, lat2, lon2) {
+  const R = 3959, dLat = (lat2-lat1)*Math.PI/180, dLon = (lon2-lon1)*Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ══ SCREENS ══
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  if (name === 'notes') renderNotes();
+  if (name === 'profile') renderProfile();
+}
+
+// ══ MOOD ══
+document.getElementById('mood-grid').addEventListener('click', e => {
+  const chip = e.target.closest('.mood-chip');
+  if (!chip) return;
+  document.querySelectorAll('.mood-chip').forEach(c => c.classList.remove('selected'));
+  chip.classList.add('selected');
+  selectedMood = chip.dataset.mood;
+});
+
+document.getElementById('adventure-btn').addEventListener('click', () => {
+  const moods = ['burger','pizza','sushi','healthy','mexican','chinese','italian','dessert'];
+  selectedMood = moods[Math.floor(Math.random() * moods.length)];
+  document.querySelectorAll('.mood-chip').forEach(c => c.classList.toggle('selected', c.dataset.mood === selectedMood));
+  showToast('🎲 Going with ' + selectedMood.charAt(0).toUpperCase() + selectedMood.slice(1) + '!');
+  setTimeout(doSearch, 400);
+});
+
+// ══ PRIORITIES ══
+const priorityList = document.getElementById('priority-list');
+let dragItem = null;
+
+priorityList.addEventListener('dragstart', e => {
+  dragItem = e.target.closest('.priority-item');
+  dragItem.classList.add('dragging');
+});
+priorityList.addEventListener('dragend', () => {
+  dragItem?.classList.remove('dragging');
+  dragItem = null;
+  [...priorityList.children].forEach((item, i) => item.querySelector('.priority-rank').textContent = i + 1);
+  syncPriorities();
+});
+priorityList.addEventListener('dragover', e => {
+  e.preventDefault();
+  const over = e.target.closest('.priority-item');
+  if (over && over !== dragItem) {
+    const items = [...priorityList.children];
+    const overIdx = items.indexOf(over), dragIdx = items.indexOf(dragItem);
+    if (overIdx > dragIdx) priorityList.insertBefore(dragItem, over.nextSibling);
+    else priorityList.insertBefore(dragItem, over);
+  }
+});
+priorityList.addEventListener('click', e => {
+  const btn = e.target.closest('.priority-toggle button');
+  if (!btn) return;
+  btn.closest('.priority-toggle').querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  syncPriorities();
+});
+
+function syncPriorities() {
+  priorities = [...priorityList.children].map(item => ({
+    key: item.dataset.priority,
+    dir: item.querySelector('.priority-toggle button.active')?.dataset.dir || 'asc'
+  }));
+}
+
+// ══ SEARCH ══
+document.getElementById('find-btn').addEventListener('click', () => {
+  if (!selectedMood) { showToast('Pick a craving first! 👆'); return; }
+  doSearch();
+});
+
+function doSearch() {
+  syncPriorities();
+  const personalExcludes = notes.filter(n => n.myRating === 1).map(n => n.restaurantId);
+  const boosts = notes.filter(n => n.myRating >= 4).map(n => n.restaurantId);
+
+  let results = RESTAURANTS
+    .filter(r => r.cuisine === selectedMood)
+    .filter(r => !exclusions.cuisines.includes(r.cuisine))
+    .filter(r => !exclusions.restaurants.includes(r.id))
+    .filter(r => !personalExcludes.includes(r.id))
+    .map(r => ({ ...r, distance: distanceMiles(userLat, userLng, r.lat, r.lng) }));
+
+  results.sort((a, b) => {
+    for (const p of priorities) {
+      let va = p.key === 'cost' ? a.price : p.key === 'distance' ? a.distance : a.rating;
+      let vb = p.key === 'cost' ? b.price : p.key === 'distance' ? b.distance : b.rating;
+      if (p.key === 'rating') {
+        if (boosts.includes(a.id)) va += 0.5;
+        if (boosts.includes(b.id)) vb += 0.5;
+      }
+      const cmp = p.dir === 'asc' ? va - vb : vb - va;
+      if (cmp !== 0) return cmp;
+    }
+    return 0;
   });
+
+  renderResults(results);
+  showScreen('results');
+}
+
+// ══ RENDER RESULTS ══
+function renderResults(results) {
+  const label = selectedMood ? selectedMood.charAt(0).toUpperCase() + selectedMood.slice(1) : 'All';
+  document.getElementById('results-title').textContent = label + ' Spots';
+  document.getElementById('results-count').textContent = results.length
+    ? results.length + ' restaurants found'
+    : 'No results — try another mood!';
+
+  const list = document.getElementById('results-list');
+  if (!results.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">😅</div><div class="empty-title">Nothing here</div><div class="empty-desc">All restaurants in this category may be excluded. Check your Profile to manage exclusions.</div></div>`;
+    renderMapPins([]);
+    return;
+  }
+
+  list.innerHTML = results.map(r => {
+    const myNote = notes.find(n => n.restaurantId === r.id);
+    const price = '$'.repeat(r.price);
+    const stars = '★'.repeat(Math.floor(r.rating)) + (r.rating % 1 >= 0.5 ? '½' : '');
+    const dist = r.distance ? r.distance.toFixed(1) + ' mi' : '—';
+    return `
+    <div class="restaurant-card" data-id="${r.id}">
+      <div class="card-emoji-banner">${r.emoji}</div>
+      <div class="card-body">
+        ${myNote ? `<div class="notes-badge">📓 You have notes here</div>` : ''}
+        <div class="card-top">
+          <div class="card-name">${r.name}</div>
+          <div class="card-price">${price}</div>
+        </div>
+        <div class="card-meta">
+          <span class="card-rating">${stars} ${r.rating}</span>
+          <span class="card-distance">📍 ${dist}</span>
+        </div>
+        <div class="card-desc">${r.description}</div>
+        <div class="card-tags">${r.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
+        <div class="card-actions">
+          <button class="btn-reject" onclick="openRejectModal(${r.id})">🚫 Not for me</button>
+          <button class="btn-note" onclick="openNoteModal(${r.id}, ${JSON.stringify(r.name)})">✍️ I went here</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  renderMapPins(results);
+}
+
+function renderMapPins(results) {
+  document.getElementById('map-pin-list').innerHTML = results.map(r => `
+    <div class="pin-row">
+      <span class="pin-emoji">${r.emoji}</span>
+      <div style="flex:1">
+        <div class="pin-name">${r.name}</div>
+        <div class="pin-meta">${r.distance.toFixed(1)} mi · ${'$'.repeat(r.price)}</div>
+      </div>
+      <span class="pin-rating">${r.rating}★</span>
+    </div>`).join('');
+}
+
+// ══ VIEW TOGGLE ══
+function setView(v) {
+  document.getElementById('list-view').style.display = v === 'list' ? 'block' : 'none';
+  document.getElementById('map-view').style.display = v === 'map' ? 'flex' : 'none';
+  document.getElementById('list-view-btn').classList.toggle('active', v === 'list');
+  document.getElementById('map-view-btn').classList.toggle('active', v === 'map');
+}
+
+// ══ REJECT MODAL ══
+function openRejectModal(id) {
+  currentRestaurantId = id;
+  openModal('reject-modal');
+}
+document.getElementById('reject-confirm-btn').addEventListener('click', () => {
+  const reason = document.getElementById('reject-reason').value;
+  const r = RESTAURANTS.find(r => r.id === currentRestaurantId);
+  if (!r) return;
+  if (reason === 'restaurant') {
+    if (!exclusions.restaurants.includes(currentRestaurantId)) exclusions.restaurants.push(currentRestaurantId);
+    showToast('Got it! Skipping ' + r.name + ' 👍');
+  } else {
+    if (!exclusions.cuisines.includes(r.cuisine)) exclusions.cuisines.push(r.cuisine);
+    showToast('No more ' + r.cuisine + ' suggestions 🙅');
+  }
+  persist();
+  closeModal('reject-modal');
+  const card = document.querySelector(`.restaurant-card[data-id="${currentRestaurantId}"]`);
+  if (card) {
+    card.style.transition = 'all 0.3s';
+    card.style.opacity = '0'; card.style.transform = 'scale(0.95)';
+    setTimeout(() => card.remove(), 300);
+  }
+});
+
+// ══ NOTE MODAL ══
+function openNoteModal(id, name) {
+  currentRestaurantId = id;
+  noteStarRating = 0;
+  document.getElementById('note-modal-title').textContent = name;
+  document.getElementById('note-orders').value = '';
+  document.getElementById('note-text').value = '';
+  document.querySelectorAll('.star-btn').forEach(b => b.classList.remove('lit'));
+  const existing = notes.find(n => n.restaurantId === id);
+  if (existing) {
+    document.getElementById('note-orders').value = (existing.itemsOrdered || []).join(', ');
+    document.getElementById('note-text').value = existing.notes || '';
+    noteStarRating = existing.myRating || 0;
+    updateStars(noteStarRating);
+  }
+  openModal('note-modal');
+}
+document.getElementById('star-rating').addEventListener('click', e => {
+  const btn = e.target.closest('.star-btn');
+  if (!btn) return;
+  noteStarRating = parseInt(btn.dataset.star);
+  updateStars(noteStarRating);
+});
+function updateStars(n) {
+  document.querySelectorAll('.star-btn').forEach(b => b.classList.toggle('lit', parseInt(b.dataset.star) <= n));
+}
+document.getElementById('note-save-btn').addEventListener('click', () => {
+  const r = RESTAURANTS.find(r => r.id === currentRestaurantId);
+  if (!r) return;
+  const orders = document.getElementById('note-orders').value.trim();
+  const text   = document.getElementById('note-text').value.trim();
+  const entry  = {
+    restaurantId: currentRestaurantId, restaurantName: r.name,
+    dateVisited: new Date().toISOString().split('T')[0],
+    itemsOrdered: orders ? orders.split(',').map(s => s.trim()) : [],
+    myRating: noteStarRating, notes: text
+  };
+  if (noteStarRating === 1 && !exclusions.restaurants.includes(currentRestaurantId)) {
+    exclusions.restaurants.push(currentRestaurantId);
+    showToast('1 star — added to exclusions 🚫');
+  }
+  const idx = notes.findIndex(n => n.restaurantId === currentRestaurantId);
+  if (idx >= 0) notes[idx] = entry; else notes.push(entry);
+  persist();
+  const card = document.querySelector(`.restaurant-card[data-id="${currentRestaurantId}"] .card-body`);
+  if (card && !card.querySelector('.notes-badge')) {
+    const badge = document.createElement('div');
+    badge.className = 'notes-badge'; badge.textContent = '📓 You have notes here';
+    card.insertBefore(badge, card.firstChild);
+  }
+  closeModal('note-modal');
+  showToast('Note saved! Enjoy your meal 🍽');
+});
+
+// ══ NOTES SCREEN ══
+function renderNotes() {
+  const list = document.getElementById('notes-list');
+  if (!notes.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📓</div><div class="empty-title">No notes yet</div><div class="empty-desc">After visiting a restaurant, tap "I went here" to leave notes for next time.</div></div>`;
+    return;
+  }
+  list.innerHTML = notes.slice().reverse().map(n => `
+    <div class="note-card">
+      <div class="note-restaurant">${n.restaurantName}</div>
+      <div class="note-date">Visited ${n.dateVisited}</div>
+      <div class="note-stars">${'⭐'.repeat(n.myRating || 0)} ${n.myRating ? '(' + n.myRating + '/5)' : ''}</div>
+      ${n.itemsOrdered?.length ? `<div class="note-items">🍽 ${n.itemsOrdered.join(', ')}</div>` : ''}
+      ${n.notes ? `<div class="note-body">"${n.notes}"</div>` : ''}
+    </div>`).join('');
+}
+
+// ══ PROFILE SCREEN ══
+function renderProfile() {
+  document.querySelectorAll('#budget-row .budget-chip').forEach(c =>
+    c.classList.toggle('selected', parseInt(c.dataset.budget) === profile.budget));
+  document.querySelectorAll('#dietary-chips .pref-chip').forEach(c =>
+    c.classList.toggle('selected', profile.dietary.includes(c.dataset.diet)));
+  document.querySelectorAll('#fav-cuisine-chips .pref-chip').forEach(c =>
+    c.classList.toggle('selected', profile.favorites.includes(c.dataset.fav)));
+  renderExclusions();
+}
+function renderExclusions() {
+  const el = document.getElementById('exclusions-list');
+  const all = [
+    ...exclusions.restaurants.map(id => {
+      const r = RESTAURANTS.find(r => r.id === id);
+      return { label: r ? r.name : 'Unknown', type: 'Restaurant', key: 'r_' + id };
+    }),
+    ...exclusions.cuisines.map(c => ({
+      label: c.charAt(0).toUpperCase() + c.slice(1) + ' cuisine', type: 'Cuisine', key: 'c_' + c
+    }))
+  ];
+  if (!all.length) { el.innerHTML = '<p style="font-size:13px;color:var(--text3)">No exclusions yet.</p>'; return; }
+  el.innerHTML = all.map(item => `
+    <div class="exclusion-item">
+      <div><div class="exclusion-name">${item.label}</div><div class="exclusion-type">${item.type} excluded</div></div>
+      <button class="remove-btn" onclick="removeExclusion('${item.key}')">✕</button>
+    </div>`).join('');
+}
+function removeExclusion(key) {
+  if (key.startsWith('r_')) exclusions.restaurants = exclusions.restaurants.filter(id => id !== parseInt(key.slice(2)));
+  else exclusions.cuisines = exclusions.cuisines.filter(c => c !== key.slice(2));
+  persist(); renderExclusions();
+}
+document.getElementById('budget-row').addEventListener('click', e => {
+  const chip = e.target.closest('.budget-chip'); if (!chip) return;
+  profile.budget = parseInt(chip.dataset.budget); persist(); renderProfile();
+});
+document.getElementById('dietary-chips').addEventListener('click', e => {
+  const chip = e.target.closest('.pref-chip'); if (!chip) return;
+  const d = chip.dataset.diet;
+  profile.dietary = profile.dietary.includes(d) ? profile.dietary.filter(x => x !== d) : [...profile.dietary, d];
+  persist(); chip.classList.toggle('selected', profile.dietary.includes(d));
+});
+document.getElementById('fav-cuisine-chips').addEventListener('click', e => {
+  const chip = e.target.closest('.pref-chip'); if (!chip) return;
+  const f = chip.dataset.fav;
+  profile.favorites = profile.favorites.includes(f) ? profile.favorites.filter(x => x !== f) : [...profile.favorites, f];
+  persist(); chip.classList.toggle('selected', profile.favorites.includes(f));
+});
+document.getElementById('export-btn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify({ exportDate: new Date().toISOString(), profile, exclusions, notes, settings }, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'Zest_UserData.json'; a.click();
+  URL.revokeObjectURL(url);
+  showToast('📤 Data exported! Save it to Files.');
+});
+
+// ══ WHAT'S NEW ══
+function checkWhatsNew() {
+  if (settings.whatsNewCount >= 5) return;
+  settings.whatsNewCount++; persist();
+  if (settings.whatsNewCount === 5) document.getElementById('whats-new-subtitle').textContent = 'Last time! Find new spots anytime in Discover.';
+  document.getElementById('whats-new-list').innerHTML = WHATS_NEW.map(r => `
+    <div class="new-item">
+      <div class="new-emoji-box">${r.emoji}</div>
+      <div><div class="new-name">${r.name}</div><div class="new-desc">${r.desc}</div><span class="new-badge">JUST OPENED</span></div>
+    </div>`).join('');
+  setTimeout(() => openModal('whats-new-modal'), 800);
+}
+
+// ══ MODALS ══
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
+});
+
+// ══ TOAST ══
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ══ INIT ══
+initLocation();
+checkWhatsNew();
+renderProfile();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
 </script>
 </body>
 </html>

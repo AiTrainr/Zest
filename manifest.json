@@ -2,7 +2,7 @@
   "name": "Zest",
   "short_name": "Zest",
   "description": "Find your flavor.",
-  "start_url": "/",
+  "start_url": "/Zest/",
   "display": "standalone",
   "background_color": "#FF9F1C",
   "theme_color": "#FF9F1C",
