@@ -111,11 +111,17 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
 .priority-item {
   display: flex; align-items: center; background: var(--card);
   border: 1px solid var(--border); border-radius: var(--radius-sm);
-  padding: 10px 12px; margin-bottom: 8px; gap: 10px; cursor: grab;
+  padding: 10px 12px; margin-bottom: 8px; gap: 10px;
   transition: box-shadow 0.15s;
 }
-.priority-item.dragging { box-shadow: var(--shadow-lg); opacity: 0.9; }
-.drag-handle { color: var(--text3); font-size: 16px; flex-shrink: 0; }
+.priority-arrows { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+.arrow-btn {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  width: 26px; height: 22px; font-size: 12px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text2); transition: background 0.15s;
+}
+.arrow-btn:active { background: var(--orange); color: #fff; border-color: var(--orange); }
 .priority-rank {
   width: 22px; height: 22px; border-radius: 50%; background: var(--orange);
   color: #fff; font-size: 11px; font-weight: 700;
@@ -346,10 +352,13 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
 
       <button class="adventure-btn" id="adventure-btn">🎲 I'm Feeling Adventurous</button>
 
-      <p class="section-label">Sort by priority <span style="font-size:10px;color:var(--text3)">(drag to reorder)</span></p>
+      <p class="section-label">Sort by priority <span style="font-size:10px;color:var(--text3)">(tap ↑↓ to reorder)</span></p>
       <div class="priority-section" id="priority-list">
-        <div class="priority-item" draggable="true" data-priority="cost">
-          <span class="drag-handle">⠿</span>
+        <div class="priority-item" data-priority="cost">
+          <div class="priority-arrows">
+            <button class="arrow-btn" onclick="movePriority('cost',-1)">↑</button>
+            <button class="arrow-btn" onclick="movePriority('cost',1)">↓</button>
+          </div>
           <span class="priority-rank">1</span>
           <span class="priority-name">💰 Cost</span>
           <div class="priority-toggle">
@@ -357,8 +366,11 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
             <button data-dir="desc">High→Low</button>
           </div>
         </div>
-        <div class="priority-item" draggable="true" data-priority="distance">
-          <span class="drag-handle">⠿</span>
+        <div class="priority-item" data-priority="distance">
+          <div class="priority-arrows">
+            <button class="arrow-btn" onclick="movePriority('distance',-1)">↑</button>
+            <button class="arrow-btn" onclick="movePriority('distance',1)">↓</button>
+          </div>
           <span class="priority-rank">2</span>
           <span class="priority-name">📍 Distance</span>
           <div class="priority-toggle">
@@ -366,8 +378,11 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
             <button data-dir="desc">Far→Near</button>
           </div>
         </div>
-        <div class="priority-item" draggable="true" data-priority="rating">
-          <span class="drag-handle">⠿</span>
+        <div class="priority-item" data-priority="rating">
+          <div class="priority-arrows">
+            <button class="arrow-btn" onclick="movePriority('rating',-1)">↑</button>
+            <button class="arrow-btn" onclick="movePriority('rating',1)">↓</button>
+          </div>
           <span class="priority-rank">3</span>
           <span class="priority-name">⭐ Rating</span>
           <div class="priority-toggle">
@@ -776,28 +791,19 @@ async function doSearchAdventurous() {
 
 // ══ PRIORITIES ══
 const priorityList = document.getElementById('priority-list');
-let dragItem = null;
 
-priorityList.addEventListener('dragstart', e => {
-  dragItem = e.target.closest('.priority-item');
-  dragItem.classList.add('dragging');
-});
-priorityList.addEventListener('dragend', () => {
-  dragItem?.classList.remove('dragging');
-  dragItem = null;
+function movePriority(key, dir) {
+  const items = [...priorityList.children];
+  const idx = items.findIndex(el => el.dataset.priority === key);
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= items.length) return;
+  const el = items[idx];
+  if (dir === -1) priorityList.insertBefore(el, items[newIdx]);
+  else priorityList.insertBefore(items[newIdx], el);
   [...priorityList.children].forEach((item, i) => item.querySelector('.priority-rank').textContent = i + 1);
   syncPriorities();
-});
-priorityList.addEventListener('dragover', e => {
-  e.preventDefault();
-  const over = e.target.closest('.priority-item');
-  if (over && over !== dragItem) {
-    const items = [...priorityList.children];
-    const overIdx = items.indexOf(over), dragIdx = items.indexOf(dragItem);
-    if (overIdx > dragIdx) priorityList.insertBefore(dragItem, over.nextSibling);
-    else priorityList.insertBefore(dragItem, over);
-  }
-});
+}
+
 priorityList.addEventListener('click', e => {
   const btn = e.target.closest('.priority-toggle button');
   if (!btn) return;
