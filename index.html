@@ -226,8 +226,18 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
 .location-card-tap:active { opacity: 0.8; }
 
 /* PRIORITY TOUCH DRAG */
-.priority-item { touch-action: none; user-select: none; }
+.priority-item { touch-action: none; user-select: none; -webkit-user-select: none; }
 .priority-item.dragging { box-shadow: var(--shadow-lg); opacity: 0.85; transform: scale(1.02); border-color: var(--orange); }
+.priority-section { user-select: none; -webkit-user-select: none; }
+
+/* SPIN LIST */
+.spin-list-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 6px; transition: opacity 0.35s, filter 0.35s; }
+.spin-list-item.eliminated { opacity: 0.35; filter: grayscale(0.6); }
+.spin-list-num { width: 24px; height: 24px; border-radius: 50%; background: var(--orange); color: white; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.spin-list-item.eliminated .spin-list-num { background: var(--text3); }
+.spin-list-name { flex: 1; font-size: 13px; font-weight: 600; }
+.spin-list-meta { font-size: 11px; color: var(--text2); }
+.spin-list-reason { font-size: 10px; color: var(--text3); font-style: italic; }
 
 /* SPIN WHEEL */
 .spin-wrap { display: flex; flex-direction: column; align-items: center; padding: 8px 20px 0; }
@@ -635,6 +645,7 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
           <button class="btn-reject" style="padding:11px;font-size:14px;color:var(--teal-dark);border-color:var(--teal)" onclick="spinNotCategory()">🚫 Not This Category</button>
         </div>
       </div>
+      <div id="spin-list" style="margin:8px 20px 20px"></div>
     </div>
   </div>
   <nav class="bottom-nav">
@@ -719,7 +730,7 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
 
 <script>
 // ══ BUILD ══
-const BUILD_VERSION = 'v2.2 · 2026-04-19';
+const BUILD_VERSION = 'v2.3 · 2026-04-19';
 
 // ══ GOOGLE PLACES CONFIG ══
 const GOOGLE_KEY = 'AIzaSyBMVZMGbJ6ETdIef0jxswglr3VEj0r8hyM';
@@ -949,6 +960,8 @@ priorityList.addEventListener('pointerdown', e => {
   _pdrItem = item;
   item.setPointerCapture(e.pointerId);
   item.classList.add('dragging');
+  document.body.style.userSelect = 'none';
+  document.body.style.webkitUserSelect = 'none';
 });
 priorityList.addEventListener('pointermove', e => {
   if (!_pdrItem) return;
@@ -970,6 +983,8 @@ priorityList.addEventListener('pointerup', () => {
   if (!_pdrItem) return;
   _pdrItem.classList.remove('dragging');
   _pdrItem = null;
+  document.body.style.userSelect = '';
+  document.body.style.webkitUserSelect = '';
 });
 
 function movePriority(key, dir) {
@@ -1421,12 +1436,36 @@ function showToast(msg) {
 }
 
 // ══ SPIN WHEEL ══
-let wheelItems = [];
+let wheelAllItems = [];  // all loaded, never mutated
+let eliminatedIds  = new Set();
 let selectedWheelItem = null;
-let spinAngle = 0;
-let spinVelocity = 0;
-let isSpinning = false;
+let spinAngle = 0, spinVelocity = 0, isSpinning = false;
+let _lastTickSeg = -1;
+let _audioCtx = null;
 const WHEEL_COLORS = ['#FF9F1C','#2EC4B6','#FF6B35','#FFD166','#06D6A0','#E07BE0','#118AB2','#EF476F','#A9DEF9','#FFC8DD'];
+const GENERIC_TYPES = new Set(['restaurant','food','establishment','point_of_interest','local_business','store']);
+
+function wheelItems() { return wheelAllItems.filter(r => !eliminatedIds.has(r.id)); }
+
+function getBestType(r) {
+  return (r.types || []).find(t => !GENERIC_TYPES.has(t)) || r.cuisine || 'restaurant';
+}
+function typeLabel(t) {
+  return t.replace(/_restaurant$/,'').replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function playTick(velocity) {
+  try {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (_audioCtx.state === 'suspended') _audioCtx.resume();
+    const osc = _audioCtx.createOscillator(), gain = _audioCtx.createGain();
+    osc.connect(gain); gain.connect(_audioCtx.destination);
+    osc.frequency.value = 300 + Math.min(velocity, 0.4) * 2000;
+    gain.gain.setValueAtTime(0.07, _audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, _audioCtx.currentTime + 0.045);
+    osc.start(_audioCtx.currentTime); osc.stop(_audioCtx.currentTime + 0.045);
+  } catch(e) {}
+}
 
 async function loadSpinWheel() {
   const btn = document.getElementById('spin-reset-btn');
@@ -1439,14 +1478,14 @@ async function loadSpinWheel() {
       const j = Math.floor(Math.random() * (i + 1));
       [places[i], places[j]] = [places[j], places[i]];
     }
-    wheelItems = places.slice(0, 20);
+    wheelAllItems = places.slice(0, 20);
+    eliminatedIds = new Set();
     spinAngle = 0;
     document.getElementById('spin-empty').style.display = 'none';
     document.getElementById('spin-active').style.display = 'block';
     document.getElementById('spin-result-card').style.display = 'none';
-    updateSpinCount();
-    drawWheel();
-    showToast('🎡 ' + wheelItems.length + ' restaurants on the wheel!');
+    updateSpinCount(); drawWheel(); renderSpinList();
+    showToast('🎡 ' + wheelAllItems.length + ' restaurants on the wheel!');
   } catch (err) {
     showToast('Could not load: ' + err.message);
   }
@@ -1454,33 +1493,57 @@ async function loadSpinWheel() {
 }
 
 function updateSpinCount() {
+  const active = wheelAllItems.length - eliminatedIds.size;
   const el = document.getElementById('spin-count');
-  if (el) el.textContent = wheelItems.length + ' restaurants on the wheel';
+  if (el) el.textContent = active + ' active · ' + eliminatedIds.size + ' removed';
 }
 
-function drawWheel() {
+function renderSpinList() {
+  const el = document.getElementById('spin-list');
+  if (!el) return;
+  const active = wheelAllItems.filter(r => !eliminatedIds.has(r.id));
+  const elim   = wheelAllItems.filter(r =>  eliminatedIds.has(r.id));
+  const row = (r, isElim, reason) => {
+    const origIdx = wheelAllItems.indexOf(r);
+    return `<div class="spin-list-item${isElim ? ' eliminated' : ''}">
+      <div class="spin-list-num">${origIdx + 1}</div>
+      <div style="flex:1">
+        <div class="spin-list-name">${r.emoji} ${r.name}</div>
+        <div class="spin-list-meta">${r.rating ? r.rating+'★  ' : ''}${r.price ? '$'.repeat(r.price)+'  ' : ''}${r.distance ? r.distance.toFixed(1)+' mi' : ''}${isElim ? `  <span class="spin-list-reason">${reason}</span>` : ''}</div>
+      </div>
+    </div>`;
+  };
+  el.innerHTML = active.map(r => row(r, false, '')).join('') +
+                 elim.map(r => row(r, true, r._elimReason || 'removed')).join('');
+}
+
+function drawWheel(winIdx = -1) {
   const canvas = document.getElementById('spin-canvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const s = canvas.width, cx = s/2, cy = s/2, r = s/2 - 4;
   ctx.clearRect(0, 0, s, s);
-  const n = wheelItems.length;
+  const items = wheelItems();
+  const n = items.length;
   if (!n) {
     ctx.fillStyle = '#eee'; ctx.beginPath(); ctx.arc(cx,cy,r,0,2*Math.PI); ctx.fill();
   } else {
     const arc = (2*Math.PI)/n;
-    wheelItems.forEach((item, i) => {
+    items.forEach((item, i) => {
       const a0 = spinAngle + i*arc - Math.PI/2, a1 = a0 + arc;
       ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,a0,a1); ctx.closePath();
-      ctx.fillStyle = WHEEL_COLORS[i % WHEEL_COLORS.length]; ctx.fill();
-      ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = i === winIdx ? '#fff' : WHEEL_COLORS[i % WHEEL_COLORS.length];
+      ctx.fill();
+      if (i === winIdx) { ctx.strokeStyle = WHEEL_COLORS[i % WHEEL_COLORS.length]; ctx.lineWidth = 4; ctx.stroke(); }
+      else { ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke(); }
       ctx.save(); ctx.translate(cx,cy); ctx.rotate(a0 + arc/2);
       const fs = Math.max(8, Math.min(13, Math.floor(260/n)));
       ctx.font = `bold ${fs}px 'DM Sans',sans-serif`;
-      ctx.fillStyle = 'white'; ctx.textAlign = 'right';
+      ctx.fillStyle = i === winIdx ? WHEEL_COLORS[i % WHEEL_COLORS.length] : 'white';
+      ctx.textAlign = 'right';
       ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 3;
       const max = Math.max(6, 22 - n);
-      const label = item.emoji + ' ' + (item.name.length > max ? item.name.slice(0, max)+'…' : item.name);
+      const label = item.emoji + ' ' + (item.name.length > max ? item.name.slice(0,max)+'…' : item.name);
       ctx.fillText(label, r - 10, fs/3);
       ctx.restore();
     });
@@ -1490,18 +1553,32 @@ function drawWheel() {
   ctx.strokeStyle = '#eee'; ctx.lineWidth = 2; ctx.stroke();
 }
 
+function getSegIdx() {
+  const n = wheelItems().length; if (!n) return 0;
+  const arc = (2*Math.PI)/n;
+  return Math.floor((((-spinAngle%(2*Math.PI))+(2*Math.PI))%(2*Math.PI)) / arc) % n;
+}
+
 function startSpin() {
-  if (isSpinning || wheelItems.length < 2) return;
+  const items = wheelItems();
+  if (isSpinning || items.length < 2) return;
   isSpinning = true;
+  _lastTickSeg = -1;
   document.getElementById('spin-result-card').style.display = 'none';
   document.getElementById('spin-btn').disabled = true;
-  spinVelocity = 0.18 + Math.random() * 0.08;
+  // Fast initial velocity, aggressive decay → ~2s total with slot-machine feel
+  spinVelocity = 0.42 + Math.random() * 0.1;
   (function frame() {
     spinAngle += spinVelocity;
-    spinVelocity *= 0.988;
+    // Two-phase decay: fast while spinning, then dramatic slow-down at end for suspense
+    spinVelocity *= spinVelocity > 0.04 ? 0.975 : 0.955;
     drawWheel();
-    if (spinVelocity > 0.002) requestAnimationFrame(frame);
-    else {
+    // Tick on each segment crossing
+    const seg = getSegIdx();
+    if (seg !== _lastTickSeg) { playTick(spinVelocity); _lastTickSeg = seg; }
+    if (spinVelocity > 0.005) {
+      requestAnimationFrame(frame);
+    } else {
       isSpinning = false;
       document.getElementById('spin-btn').disabled = false;
       finishSpin();
@@ -1510,11 +1587,14 @@ function startSpin() {
 }
 
 function finishSpin() {
-  const n = wheelItems.length;
-  const arc = (2*Math.PI)/n;
-  const norm = ((-spinAngle % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI);
-  const idx = Math.floor(norm / arc) % n;
-  selectedWheelItem = wheelItems[idx];
+  const idx = getSegIdx();
+  const items = wheelItems();
+  selectedWheelItem = items[idx] || items[0];
+  // Flash winner segment
+  drawWheel(idx);
+  setTimeout(() => drawWheel(), 300);
+  setTimeout(() => drawWheel(idx), 600);
+  setTimeout(() => drawWheel(), 900);
   const mapsUrl = selectedWheelItem.placeId
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedWheelItem.name)}&query_place_id=${selectedWheelItem.placeId}`
     : `https://maps.google.com/?q=${encodeURIComponent(selectedWheelItem.name)}`;
@@ -1525,31 +1605,35 @@ function finishSpin() {
     (selectedWheelItem.price ? '$'.repeat(selectedWheelItem.price)+'  ' : '') +
     (selectedWheelItem.distance ? selectedWheelItem.distance.toFixed(1)+' mi' : '');
   document.getElementById('spin-go-btn').href = mapsUrl;
-  document.getElementById('spin-result-card').style.display = 'block';
+  setTimeout(() => document.getElementById('spin-result-card').style.display = 'block', 700);
+}
+
+function checkWheelDone() {
+  const active = wheelItems();
+  updateSpinCount(); drawWheel(); renderSpinList();
+  if (active.length === 1) { selectedWheelItem = active[0]; setTimeout(finishSpin, 200); }
+  else if (!active.length) { document.getElementById('spin-active').style.display = 'none'; document.getElementById('spin-empty').style.display = 'block'; }
 }
 
 function spinNotThisTime() {
   if (!selectedWheelItem) return;
-  wheelItems = wheelItems.filter(r => r.id !== selectedWheelItem.id);
+  selectedWheelItem._elimReason = 'not this time';
+  eliminatedIds.add(selectedWheelItem.id);
   document.getElementById('spin-result-card').style.display = 'none';
-  updateSpinCount(); drawWheel();
-  if (wheelItems.length === 1) setTimeout(finishSpin, 200);
-  else if (!wheelItems.length) { document.getElementById('spin-active').style.display = 'none'; document.getElementById('spin-empty').style.display = 'block'; }
+  checkWheelDone();
 }
 
 function spinNotCategory() {
   if (!selectedWheelItem) return;
-  const types = selectedWheelItem.types || [];
-  const refType = types.find(t => t !== 'restaurant' && t !== 'food' && t !== 'establishment' && t !== 'point_of_interest') || selectedWheelItem.cuisine;
-  wheelItems = wheelItems.filter(r => {
-    const rt = r.types || [];
-    return !rt.includes(refType) && r.cuisine !== refType;
+  const refType = getBestType(selectedWheelItem);
+  const label = typeLabel(refType);
+  wheelAllItems.forEach(r => {
+    if (eliminatedIds.has(r.id)) return;
+    if (getBestType(r) === refType) { r._elimReason = 'not ' + label; eliminatedIds.add(r.id); }
   });
   document.getElementById('spin-result-card').style.display = 'none';
-  showToast('Removed that category 🚫');
-  updateSpinCount(); drawWheel();
-  if (wheelItems.length === 1) setTimeout(finishSpin, 200);
-  else if (!wheelItems.length) { document.getElementById('spin-active').style.display = 'none'; document.getElementById('spin-empty').style.display = 'block'; }
+  showToast('Removed all ' + label + ' 🚫');
+  checkWheelDone();
 }
 
 // ══ INIT ══
