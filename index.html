@@ -154,6 +154,15 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
 .card-emoji-banner {
   width: 100%; height: 140px; display: flex; align-items: center; justify-content: center;
   font-size: 56px; background: linear-gradient(135deg, var(--orange-light), var(--teal-light));
+  position: relative;
+}
+.result-num {
+  position: absolute; top: 8px; left: 10px;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--orange); color: white;
+  font-size: 13px; font-weight: 800; font-family: 'DM Sans', sans-serif;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }
 .card-body { padding: 14px; }
 .card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 6px; }
@@ -200,7 +209,7 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
 .map-pin-list::-webkit-scrollbar { display: none; }
 .pin-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .pin-row:last-child { border-bottom: none; }
-.pin-emoji { font-size: 20px; }
+.pin-num { width: 26px; height: 26px; border-radius: 50%; background: var(--orange); color: white; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .pin-name { font-weight: 600; font-size: 14px; flex: 1; }
 .pin-meta { font-size: 12px; color: var(--text2); }
 .pin-rating { font-size: 12px; color: #F5A623; font-weight: 700; }
@@ -710,7 +719,7 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
 
 <script>
 // ══ BUILD ══
-const BUILD_VERSION = 'v2.1 · 2026-04-19';
+const BUILD_VERSION = 'v2.2 · 2026-04-19';
 
 // ══ GOOGLE PLACES CONFIG ══
 const GOOGLE_KEY = 'AIzaSyBMVZMGbJ6ETdIef0jxswglr3VEj0r8hyM';
@@ -1079,7 +1088,8 @@ function renderResults(results) {
     return;
   }
 
-  list.innerHTML = results.map(r => {
+  list.innerHTML = results.map((r, idx) => {
+    const num        = idx + 1;
     const myVisits   = notes.filter(n => n.restaurantId === r.id);
     const myRating   = getWeightedRating(r.id);
     const price      = r.price ? '$'.repeat(r.price) : '—';
@@ -1096,7 +1106,7 @@ function renderResults(results) {
       : (myVisits.length ? `<div class="your-rating-badge">📓 ${myVisits.length} visit${myVisits.length > 1 ? 's' : ''} logged</div>` : '');
     return `
     <div class="restaurant-card" data-id="${r.id}">
-      <div class="card-emoji-banner">${r.emoji}</div>
+      <div class="card-emoji-banner"><div class="result-num">${num}</div>${r.emoji}</div>
       <div class="card-body">
         ${yourRatingHtml}
         <div class="card-top">
@@ -1122,9 +1132,9 @@ function renderResults(results) {
 }
 
 function renderMapPins(results) {
-  document.getElementById('map-pin-list').innerHTML = results.map(r => `
+  document.getElementById('map-pin-list').innerHTML = results.map((r, i) => `
     <div class="pin-row">
-      <span class="pin-emoji">${r.emoji}</span>
+      <div class="pin-num">${i + 1}</div>
       <div style="flex:1">
         <div class="pin-name">${r.name}</div>
         <div class="pin-meta">${r.distance.toFixed(1)} mi · ${'$'.repeat(r.price || 1)}</div>
@@ -1151,11 +1161,12 @@ function updateLeafletMarkers(results) {
   L.marker([userLat, userLng], {
     icon: L.divIcon({ className: '', html: '<div style="font-size:22px;line-height:1">📍</div>', iconSize: [28,28], iconAnchor: [14,28] })
   }).addTo(leafletMap).bindPopup('You are here');
-  const valid = results.filter(r => r.lat && r.lng);
+  const valid = results.map((r, i) => ({ ...r, num: i + 1 })).filter(r => r.lat && r.lng);
   valid.forEach(r => {
+    const html = `<div style="width:28px;height:28px;border-radius:50%;background:#FF9F1C;color:white;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.3);border:2px solid white;font-family:sans-serif">${r.num}</div>`;
     const m = L.marker([r.lat, r.lng], {
-      icon: L.divIcon({ className: '', html: `<div style="font-size:20px;line-height:1">${r.emoji}</div>`, iconSize: [26,26], iconAnchor: [13,26] })
-    }).addTo(leafletMap).bindPopup(`<b>${r.name}</b><br>${r.rating ? r.rating + '★  ' : ''}${r.price ? '$'.repeat(r.price) : ''}`);
+      icon: L.divIcon({ className: '', html, iconSize: [28,28], iconAnchor: [14,14] })
+    }).addTo(leafletMap).bindPopup(`<b>${r.num}. ${r.name}</b><br>${r.rating ? r.rating + '★  ' : ''}${r.price ? '$'.repeat(r.price) : ''}`);
     leafletMarkers.push(m);
   });
   if (valid.length) {
