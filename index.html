@@ -207,15 +207,53 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
 #leaflet-map { flex: 1; min-height: 0; z-index: 0; }
 .leaflet-container { font-family: 'DM Sans', sans-serif; }
 .gps-recenter-btn {
-  position: absolute; top: 12px; right: 12px; z-index: 500;
   background: white; border: 1.5px solid var(--teal); border-radius: 50%;
-  width: 40px; height: 40px; font-size: 18px;
+  width: 34px; height: 34px; font-size: 16px;
   display: none; align-items: center; justify-content: center;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow); flex-shrink: 0;
 }
 .gps-recenter-btn.visible { display: flex; }
 .location-card-tap { cursor: pointer; position: relative; }
 .location-card-tap:active { opacity: 0.8; }
+
+/* PRIORITY TOUCH DRAG */
+.priority-item { touch-action: none; user-select: none; }
+.priority-item.dragging { box-shadow: var(--shadow-lg); opacity: 0.85; transform: scale(1.02); border-color: var(--orange); }
+
+/* SPIN WHEEL */
+.spin-wrap { display: flex; flex-direction: column; align-items: center; padding: 8px 20px 0; }
+.spin-needle-row { font-size: 26px; line-height: 1; color: var(--orange); margin-bottom: -4px; z-index: 2; }
+.spin-canvas-wrap { position: relative; width: 300px; height: 300px; flex-shrink: 0; }
+#spin-canvas { display: block; }
+.spin-center-btn {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 58px; height: 58px; border-radius: 50%;
+  background: white; border: 3px solid var(--orange); color: var(--orange);
+  font-size: 12px; font-weight: 800; box-shadow: var(--shadow); letter-spacing: 0.05em;
+}
+.spin-center-btn:disabled { opacity: 0.5; }
+.spin-result-card {
+  background: var(--card); border-radius: var(--radius); border: 1px solid var(--border);
+  padding: 16px; margin: 12px 20px 0; box-shadow: var(--shadow);
+}
+.spin-result-name { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 4px; }
+.spin-result-meta { font-size: 12px; color: var(--text2); text-align: center; margin-bottom: 14px; }
+.spin-action-row { display: flex; flex-direction: column; gap: 8px; }
+.spin-reset-btn {
+  background: var(--bg); border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  padding: 7px 12px; font-size: 12px; font-weight: 600; color: var(--text2);
+}
+.spin-count { font-size: 11px; color: var(--text3); text-align: center; margin-top: 6px; }
+.your-rating-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; color: #c97a00; background: #fff3cd;
+  border: 1px solid #ffd970; padding: 2px 8px; border-radius: 20px; margin-bottom: 8px;
+}
+.location-result-item {
+  padding: 11px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  margin-bottom: 7px; font-size: 13px; line-height: 1.4; cursor: pointer;
+}
+.location-result-item:active { background: var(--bg); }
 
 /* MODALS */
 .modal-overlay {
@@ -410,18 +448,11 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
     </div>
   </div>
   <nav class="bottom-nav">
-    <button class="nav-btn active" onclick="showScreen('home')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home
-    </button>
-    <button class="nav-btn" onclick="showScreen('results')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover
-    </button>
-    <button class="nav-btn" onclick="showScreen('notes')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>My Notes
-    </button>
-    <button class="nav-btn" onclick="showScreen('profile')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile
-    </button>
+    <button class="nav-btn active" onclick="showScreen('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home</button>
+    <button class="nav-btn" onclick="showScreen('results')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover</button>
+    <button class="nav-btn" onclick="showScreen('spin')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 3v7M12 14v7M3 12h7M14 12h7"/></svg>Spin</button>
+    <button class="nav-btn" onclick="showScreen('notes')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>My Notes</button>
+    <button class="nav-btn" onclick="showScreen('profile')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</button>
   </nav>
 </div>
 
@@ -448,18 +479,11 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
   </div>
 
   <nav class="bottom-nav">
-    <button class="nav-btn" onclick="showScreen('home')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home
-    </button>
-    <button class="nav-btn active" onclick="showScreen('results')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover
-    </button>
-    <button class="nav-btn" onclick="showScreen('notes')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>My Notes
-    </button>
-    <button class="nav-btn" onclick="showScreen('profile')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile
-    </button>
+    <button class="nav-btn" onclick="showScreen('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home</button>
+    <button class="nav-btn active" onclick="showScreen('results')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover</button>
+    <button class="nav-btn" onclick="showScreen('spin')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 3v7M12 14v7M3 12h7M14 12h7"/></svg>Spin</button>
+    <button class="nav-btn" onclick="showScreen('notes')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>My Notes</button>
+    <button class="nav-btn" onclick="showScreen('profile')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</button>
   </nav>
 </div>
 
@@ -471,18 +495,11 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
   </div>
   <div class="scroll-area"><div class="notes-list" id="notes-list"></div></div>
   <nav class="bottom-nav">
-    <button class="nav-btn" onclick="showScreen('home')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home
-    </button>
-    <button class="nav-btn" onclick="showScreen('results')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover
-    </button>
-    <button class="nav-btn active" onclick="showScreen('notes')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>My Notes
-    </button>
-    <button class="nav-btn" onclick="showScreen('profile')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile
-    </button>
+    <button class="nav-btn" onclick="showScreen('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home</button>
+    <button class="nav-btn" onclick="showScreen('results')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover</button>
+    <button class="nav-btn" onclick="showScreen('spin')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 3v7M12 14v7M3 12h7M14 12h7"/></svg>Spin</button>
+    <button class="nav-btn active" onclick="showScreen('notes')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>My Notes</button>
+    <button class="nav-btn" onclick="showScreen('profile')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</button>
   </nav>
 </div>
 
@@ -564,15 +581,59 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
     <button class="nav-btn" onclick="showScreen('home')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home
     </button>
-    <button class="nav-btn" onclick="showScreen('results')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover
-    </button>
-    <button class="nav-btn" onclick="showScreen('notes')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>My Notes
-    </button>
-    <button class="nav-btn active" onclick="showScreen('profile')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile
-    </button>
+    <button class="nav-btn" onclick="showScreen('results')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover</button>
+    <button class="nav-btn" onclick="showScreen('spin')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 3v7M12 14v7M3 12h7M14 12h7"/></svg>Spin</button>
+    <button class="nav-btn" onclick="showScreen('notes')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>My Notes</button>
+    <button class="nav-btn active" onclick="showScreen('profile')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</button>
+  </nav>
+</div>
+
+<!-- ══ SPIN SCREEN ══ -->
+<div class="screen" id="screen-spin">
+  <div class="page-header" style="padding-bottom:8px;flex-shrink:0">
+    <div class="logo-row" style="justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:22px">🎡</span>
+        <span style="font-family:Fraunces,serif;font-size:24px;font-weight:700">Spin to Eat</span>
+      </div>
+      <button class="spin-reset-btn" id="spin-reset-btn" onclick="loadSpinWheel()">🔄 New 20</button>
+    </div>
+    <p class="tagline">Can't decide? Let fate choose.</p>
+  </div>
+  <div class="scroll-area">
+    <div id="spin-empty" style="padding:40px 20px;text-align:center">
+      <div style="font-size:52px;margin-bottom:12px">🎡</div>
+      <div style="font-family:Fraunces,serif;font-size:20px;font-weight:600;margin-bottom:8px">Ready to spin?</div>
+      <p style="color:var(--text2);font-size:14px;line-height:1.6;margin-bottom:20px">Loads up to 20 nearby restaurants onto the wheel. Spin, pick, or remove options until one remains.</p>
+      <button class="find-btn" onclick="loadSpinWheel()">Load Restaurants 🍽</button>
+    </div>
+    <div id="spin-active" style="display:none">
+      <div class="spin-wrap">
+        <div class="spin-needle-row">▼</div>
+        <div class="spin-canvas-wrap">
+          <canvas id="spin-canvas" width="300" height="300"></canvas>
+          <button id="spin-btn" class="spin-center-btn" onclick="startSpin()">SPIN!</button>
+        </div>
+        <div class="spin-count" id="spin-count"></div>
+      </div>
+      <div id="spin-result-card" class="spin-result-card" style="display:none">
+        <div id="spin-result-emoji" style="font-size:32px;text-align:center;margin-bottom:4px"></div>
+        <div class="spin-result-name" id="spin-result-name"></div>
+        <div class="spin-result-meta" id="spin-result-meta"></div>
+        <div class="spin-action-row">
+          <a id="spin-go-btn" href="" target="_blank" rel="noopener" class="btn-note" style="text-align:center;padding:12px;font-size:15px;text-decoration:none;border-radius:var(--radius)">🗺 Let's Go Here!</a>
+          <button class="btn-reject" style="padding:11px;font-size:14px" onclick="spinNotThisTime()">⏭ Not This Time</button>
+          <button class="btn-reject" style="padding:11px;font-size:14px;color:var(--teal-dark);border-color:var(--teal)" onclick="spinNotCategory()">🚫 Not This Category</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <nav class="bottom-nav">
+    <button class="nav-btn" onclick="showScreen('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home</button>
+    <button class="nav-btn" onclick="showScreen('results')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover</button>
+    <button class="nav-btn active" onclick="showScreen('spin')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 3v7M12 14v7M3 12h7M14 12h7"/></svg>Spin</button>
+    <button class="nav-btn" onclick="showScreen('notes')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>My Notes</button>
+    <button class="nav-btn" onclick="showScreen('profile')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</button>
   </nav>
 </div>
 
@@ -649,7 +710,7 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
 
 <script>
 // ══ BUILD ══
-const BUILD_VERSION = 'v2.0 · 2026-04-19';
+const BUILD_VERSION = 'v2.1 · 2026-04-19';
 
 // ══ GOOGLE PLACES CONFIG ══
 const GOOGLE_KEY = 'AIzaSyBMVZMGbJ6ETdIef0jxswglr3VEj0r8hyM';
@@ -786,9 +847,7 @@ async function searchLocation() {
     const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5`);
     const data = await res.json();
     resultsEl.innerHTML = data.length
-      ? data.map(r => `<div onclick="selectLocation(${r.lat},${r.lon},${JSON.stringify(r.display_name)})"
-          style="padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);margin-bottom:7px;cursor:pointer;font-size:13px;line-height:1.4">
-          📍 ${r.display_name}</div>`).join('')
+      ? data.map((r, i) => `<div class="location-result-item" data-idx="${i}" data-lat="${r.lat}" data-lon="${r.lon}" data-name="${r.display_name.replace(/"/g,'&quot;')}">📍 ${r.display_name}</div>`).join('')
       : '<div style="text-align:center;padding:12px;color:var(--text2)">No results — try a different search.</div>';
   } catch {
     resultsEl.innerHTML = '<div style="text-align:center;padding:12px;color:var(--text2)">Search failed. Check your connection.</div>';
@@ -864,8 +923,45 @@ async function doSearchAdventurous() {
   }
 }
 
+// ══ LOCATION RESULT DELEGATION ══
+document.getElementById('location-search-results').addEventListener('click', e => {
+  const item = e.target.closest('.location-result-item');
+  if (!item) return;
+  selectLocation(item.dataset.lat, item.dataset.lon, item.dataset.name);
+});
+
 // ══ PRIORITIES ══
 const priorityList = document.getElementById('priority-list');
+
+let _pdrItem = null;
+priorityList.addEventListener('pointerdown', e => {
+  const item = e.target.closest('.priority-item');
+  if (!item || e.target.closest('.arrow-btn') || e.target.closest('.priority-toggle')) return;
+  _pdrItem = item;
+  item.setPointerCapture(e.pointerId);
+  item.classList.add('dragging');
+});
+priorityList.addEventListener('pointermove', e => {
+  if (!_pdrItem) return;
+  const rect = priorityList.getBoundingClientRect();
+  const y = e.clientY - rect.top;
+  const items = [...priorityList.children];
+  let target = null;
+  for (const el of items) {
+    if (el === _pdrItem) continue;
+    const mid = el.getBoundingClientRect().top - rect.top + el.getBoundingClientRect().height / 2;
+    if (y < mid) { target = el; break; }
+  }
+  if (target) priorityList.insertBefore(_pdrItem, target);
+  else if ([...priorityList.children].at(-1) !== _pdrItem) priorityList.appendChild(_pdrItem);
+  [...priorityList.children].forEach((el, i) => el.querySelector('.priority-rank').textContent = i + 1);
+  syncPriorities();
+});
+priorityList.addEventListener('pointerup', () => {
+  if (!_pdrItem) return;
+  _pdrItem.classList.remove('dragging');
+  _pdrItem = null;
+});
 
 function movePriority(key, dir) {
   const items = [...priorityList.children];
@@ -920,7 +1016,8 @@ function normalizePlaces(places, emoji, cuisine) {
       website:     p.websiteUri || null,
       placeId:     p.id,
       lat:         lat,
-      lng:         lng
+      lng:         lng,
+      types:       p.types || []
     };
   });
 }
@@ -983,22 +1080,25 @@ function renderResults(results) {
   }
 
   list.innerHTML = results.map(r => {
-    const myNote = notes.find(n => n.restaurantId === r.id);
-    const price  = r.price ? '$'.repeat(r.price) : '—';
-    const dist   = r.distance ? r.distance.toFixed(1) + ' mi' : '—';
-    const stars  = r.rating ? '★'.repeat(Math.round(r.rating)) + '☆'.repeat(5 - Math.round(r.rating)) : '';
+    const myVisits   = notes.filter(n => n.restaurantId === r.id);
+    const myRating   = getWeightedRating(r.id);
+    const price      = r.price ? '$'.repeat(r.price) : '—';
+    const dist       = r.distance ? r.distance.toFixed(1) + ' mi' : '—';
+    const stars      = r.rating ? '★'.repeat(Math.round(r.rating)) + '☆'.repeat(5 - Math.round(r.rating)) : '';
     const ratingHtml = r.rating
       ? `<span class="card-rating"><span style="color:var(--orange)">${stars}</span> <strong>${r.rating}</strong><span style="color:var(--text3);font-size:11px"> (${r.ratingCount?.toLocaleString()})</span></span>`
       : `<span style="font-size:12px;color:var(--text3)">No rating</span>`;
     const mapsUrl = r.placeId
       ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.name)}&query_place_id=${r.placeId}`
       : `https://maps.google.com/?q=${encodeURIComponent(r.name + ' ' + r.description)}`;
-    const safeId = CSS.escape(r.id);
+    const yourRatingHtml = myRating
+      ? `<div class="your-rating-badge">⭐ Your rating: ${myRating}${myVisits.length > 1 ? ' (' + myVisits.length + ' visits)' : ''}</div>`
+      : (myVisits.length ? `<div class="your-rating-badge">📓 ${myVisits.length} visit${myVisits.length > 1 ? 's' : ''} logged</div>` : '');
     return `
     <div class="restaurant-card" data-id="${r.id}">
       <div class="card-emoji-banner">${r.emoji}</div>
       <div class="card-body">
-        ${myNote ? `<div class="notes-badge">📓 You have notes here</div>` : ''}
+        ${yourRatingHtml}
         <div class="card-top">
           <div class="card-name">${r.name}</div>
           <div class="card-price">${price}</div>
@@ -1010,9 +1110,9 @@ function renderResults(results) {
         <div class="card-desc">${r.description}</div>
         <div class="card-tags">${r.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
         <div class="card-actions">
-          <button class="btn-reject" onclick="openRejectModal(${JSON.stringify(r.id)})">🚫 Not for me</button>
+          <button class="btn-reject" data-rid="${r.id}">🚫 Not for me</button>
           <a class="btn-maps" href="${mapsUrl}" target="_blank" rel="noopener">🗺 Maps</a>
-          <button class="btn-note" onclick="openNoteModal(${JSON.stringify(r.id)}, ${JSON.stringify(r.name)})">✍️ I went here</button>
+          <button class="btn-note" data-rid="${r.id}" data-rname="${r.name.replace(/"/g,'&quot;')}">✍️ I went here</button>
         </div>
       </div>
     </div>`;
@@ -1076,6 +1176,27 @@ function setView(v) {
     initLeafletMap();
     setTimeout(() => { leafletMap?.invalidateSize(); updateLeafletMarkers(currentResults); }, 150);
   }
+}
+
+// ══ CARD BUTTON DELEGATION (fixes iOS onclick quote issues) ══
+document.getElementById('results-list').addEventListener('click', e => {
+  const reject = e.target.closest('.btn-reject[data-rid]');
+  const note   = e.target.closest('.btn-note[data-rid]');
+  if (reject) openRejectModal(reject.dataset.rid);
+  if (note)   openNoteModal(note.dataset.rid, note.dataset.rname);
+});
+
+// ══ WEIGHTED RATING ══
+function getWeightedRating(restaurantId) {
+  const visits = notes.filter(n => n.restaurantId === restaurantId && n.myRating > 0)
+                      .sort((a, b) => a.dateVisited.localeCompare(b.dateVisited));
+  if (!visits.length) return null;
+  let wSum = 0, wTotal = 0;
+  visits.forEach((v, i) => {
+    const w = Math.pow(0.7, visits.length - 1 - i);
+    wSum += v.myRating * w; wTotal += w;
+  });
+  return Math.round(wSum / wTotal * 10) / 10;
 }
 
 // ══ REJECT MODAL ══
@@ -1147,8 +1268,7 @@ document.getElementById('note-save-btn').addEventListener('click', () => {
     if (!excludedIds.includes(currentRestaurantId)) exclusions.restaurants.push({ id: currentRestaurantId, name: r.name });
     showToast('1 star — added to exclusions 🚫');
   }
-  const idx = notes.findIndex(n => n.restaurantId === currentRestaurantId);
-  if (idx >= 0) notes[idx] = entry; else notes.push(entry);
+  notes.push(entry);
   persist();
   const card = document.querySelector(`.restaurant-card[data-id="${currentRestaurantId}"] .card-body`);
   if (card && !card.querySelector('.notes-badge')) {
@@ -1167,14 +1287,29 @@ function renderNotes() {
     list.innerHTML = `<div class="empty-state"><div class="empty-icon">📓</div><div class="empty-title">No notes yet</div><div class="empty-desc">After visiting a restaurant, tap "I went here" to leave notes for next time.</div></div>`;
     return;
   }
-  list.innerHTML = notes.slice().reverse().map(n => `
-    <div class="note-card">
-      <div class="note-restaurant">${n.restaurantName}</div>
-      <div class="note-date">Visited ${n.dateVisited}</div>
-      <div class="note-stars">${'⭐'.repeat(n.myRating || 0)} ${n.myRating ? '(' + n.myRating + '/5)' : ''}</div>
-      ${n.itemsOrdered?.length ? `<div class="note-items">🍽 ${n.itemsOrdered.join(', ')}</div>` : ''}
-      ${n.notes ? `<div class="note-body">"${n.notes}"</div>` : ''}
-    </div>`).join('');
+  // group by restaurant, most recently visited first
+  const grouped = {};
+  notes.forEach(n => {
+    if (!grouped[n.restaurantId]) grouped[n.restaurantId] = { name: n.restaurantName, visits: [] };
+    grouped[n.restaurantId].visits.push(n);
+  });
+  const sortedGroups = Object.entries(grouped)
+    .sort(([, a], [, b]) => b.visits[b.visits.length-1].dateVisited.localeCompare(a.visits[a.visits.length-1].dateVisited));
+
+  list.innerHTML = sortedGroups.map(([rid, g]) => {
+    const weighted = getWeightedRating(rid);
+    const visits = g.visits.slice().sort((a,b) => b.dateVisited.localeCompare(a.dateVisited));
+    return `<div class="note-card">
+      <div class="note-restaurant">${g.name}</div>
+      ${weighted ? `<div class="note-stars">⭐ Avg rating: ${weighted}/5 <span style="color:var(--text3);font-size:11px">(${visits.length} visit${visits.length>1?'s':''})</span></div>` : ''}
+      ${visits.map(v => `
+        <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px">
+          <div class="note-date">📅 ${v.dateVisited} ${'⭐'.repeat(v.myRating||0)}</div>
+          ${v.itemsOrdered?.length ? `<div class="note-items">🍽 ${v.itemsOrdered.join(', ')}</div>` : ''}
+          ${v.notes ? `<div class="note-body">"${v.notes}"</div>` : ''}
+        </div>`).join('')}
+    </div>`;
+  }).join('');
 }
 
 // ══ PROFILE SCREEN ══
@@ -1272,6 +1407,138 @@ function showToast(msg) {
   t.textContent = msg; t.classList.add('show');
   clearTimeout(t._t);
   t._t = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ══ SPIN WHEEL ══
+let wheelItems = [];
+let selectedWheelItem = null;
+let spinAngle = 0;
+let spinVelocity = 0;
+let isSpinning = false;
+const WHEEL_COLORS = ['#FF9F1C','#2EC4B6','#FF6B35','#FFD166','#06D6A0','#E07BE0','#118AB2','#EF476F','#A9DEF9','#FFC8DD'];
+
+async function loadSpinWheel() {
+  const btn = document.getElementById('spin-reset-btn');
+  if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+  try {
+    const meters = Math.round((settings.radiusMiles || 5) * 1609.34);
+    const data = await googlePlacesFetch(['restaurant','fast_food_restaurant','cafe'], meters);
+    let places = normalizePlaces(data.places || [], '🍽', 'restaurant');
+    for (let i = places.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [places[i], places[j]] = [places[j], places[i]];
+    }
+    wheelItems = places.slice(0, 20);
+    spinAngle = 0;
+    document.getElementById('spin-empty').style.display = 'none';
+    document.getElementById('spin-active').style.display = 'block';
+    document.getElementById('spin-result-card').style.display = 'none';
+    updateSpinCount();
+    drawWheel();
+    showToast('🎡 ' + wheelItems.length + ' restaurants on the wheel!');
+  } catch (err) {
+    showToast('Could not load: ' + err.message);
+  }
+  if (btn) { btn.textContent = '🔄 New 20'; btn.disabled = false; }
+}
+
+function updateSpinCount() {
+  const el = document.getElementById('spin-count');
+  if (el) el.textContent = wheelItems.length + ' restaurants on the wheel';
+}
+
+function drawWheel() {
+  const canvas = document.getElementById('spin-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const s = canvas.width, cx = s/2, cy = s/2, r = s/2 - 4;
+  ctx.clearRect(0, 0, s, s);
+  const n = wheelItems.length;
+  if (!n) {
+    ctx.fillStyle = '#eee'; ctx.beginPath(); ctx.arc(cx,cy,r,0,2*Math.PI); ctx.fill();
+  } else {
+    const arc = (2*Math.PI)/n;
+    wheelItems.forEach((item, i) => {
+      const a0 = spinAngle + i*arc - Math.PI/2, a1 = a0 + arc;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,a0,a1); ctx.closePath();
+      ctx.fillStyle = WHEEL_COLORS[i % WHEEL_COLORS.length]; ctx.fill();
+      ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.save(); ctx.translate(cx,cy); ctx.rotate(a0 + arc/2);
+      const fs = Math.max(8, Math.min(13, Math.floor(260/n)));
+      ctx.font = `bold ${fs}px 'DM Sans',sans-serif`;
+      ctx.fillStyle = 'white'; ctx.textAlign = 'right';
+      ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 3;
+      const max = Math.max(6, 22 - n);
+      const label = item.emoji + ' ' + (item.name.length > max ? item.name.slice(0, max)+'…' : item.name);
+      ctx.fillText(label, r - 10, fs/3);
+      ctx.restore();
+    });
+  }
+  ctx.beginPath(); ctx.arc(cx,cy,30,0,2*Math.PI);
+  ctx.fillStyle = 'white'; ctx.fill();
+  ctx.strokeStyle = '#eee'; ctx.lineWidth = 2; ctx.stroke();
+}
+
+function startSpin() {
+  if (isSpinning || wheelItems.length < 2) return;
+  isSpinning = true;
+  document.getElementById('spin-result-card').style.display = 'none';
+  document.getElementById('spin-btn').disabled = true;
+  spinVelocity = 0.18 + Math.random() * 0.08;
+  (function frame() {
+    spinAngle += spinVelocity;
+    spinVelocity *= 0.988;
+    drawWheel();
+    if (spinVelocity > 0.002) requestAnimationFrame(frame);
+    else {
+      isSpinning = false;
+      document.getElementById('spin-btn').disabled = false;
+      finishSpin();
+    }
+  })();
+}
+
+function finishSpin() {
+  const n = wheelItems.length;
+  const arc = (2*Math.PI)/n;
+  const norm = ((-spinAngle % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI);
+  const idx = Math.floor(norm / arc) % n;
+  selectedWheelItem = wheelItems[idx];
+  const mapsUrl = selectedWheelItem.placeId
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedWheelItem.name)}&query_place_id=${selectedWheelItem.placeId}`
+    : `https://maps.google.com/?q=${encodeURIComponent(selectedWheelItem.name)}`;
+  document.getElementById('spin-result-emoji').textContent = selectedWheelItem.emoji;
+  document.getElementById('spin-result-name').textContent = selectedWheelItem.name;
+  document.getElementById('spin-result-meta').textContent =
+    (selectedWheelItem.rating ? selectedWheelItem.rating+'★  ' : '') +
+    (selectedWheelItem.price ? '$'.repeat(selectedWheelItem.price)+'  ' : '') +
+    (selectedWheelItem.distance ? selectedWheelItem.distance.toFixed(1)+' mi' : '');
+  document.getElementById('spin-go-btn').href = mapsUrl;
+  document.getElementById('spin-result-card').style.display = 'block';
+}
+
+function spinNotThisTime() {
+  if (!selectedWheelItem) return;
+  wheelItems = wheelItems.filter(r => r.id !== selectedWheelItem.id);
+  document.getElementById('spin-result-card').style.display = 'none';
+  updateSpinCount(); drawWheel();
+  if (wheelItems.length === 1) setTimeout(finishSpin, 200);
+  else if (!wheelItems.length) { document.getElementById('spin-active').style.display = 'none'; document.getElementById('spin-empty').style.display = 'block'; }
+}
+
+function spinNotCategory() {
+  if (!selectedWheelItem) return;
+  const types = selectedWheelItem.types || [];
+  const refType = types.find(t => t !== 'restaurant' && t !== 'food' && t !== 'establishment' && t !== 'point_of_interest') || selectedWheelItem.cuisine;
+  wheelItems = wheelItems.filter(r => {
+    const rt = r.types || [];
+    return !rt.includes(refType) && r.cuisine !== refType;
+  });
+  document.getElementById('spin-result-card').style.display = 'none';
+  showToast('Removed that category 🚫');
+  updateSpinCount(); drawWheel();
+  if (wheelItems.length === 1) setTimeout(finishSpin, 200);
+  else if (!wheelItems.length) { document.getElementById('spin-active').style.display = 'none'; document.getElementById('spin-empty').style.display = 'block'; }
 }
 
 // ══ INIT ══
