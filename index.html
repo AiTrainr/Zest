@@ -760,18 +760,6 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
   </div>
 </div>
 
-<!-- ══ SURPRISE MODAL ══ -->
-<div class="modal-overlay" id="surprise-modal">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div style="font-size:36px;text-align:center;margin-bottom:8px">🎰</div>
-    <div class="modal-title" style="text-align:center" id="surprise-name">—</div>
-    <div class="modal-subtitle" style="text-align:center">Your random pick is ready!</div>
-    <a class="modal-btn" id="surprise-go-btn" href="" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">🗺 Take me there</a>
-    <button class="modal-btn-cancel" onclick="closeModal('surprise-modal')">Maybe later</button>
-  </div>
-</div>
-
 <!-- ══ MANUAL NOTE SEARCH MODAL ══ -->
 <div class="modal-overlay" id="manual-search-modal">
   <div class="modal-sheet">
@@ -790,7 +778,7 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
 
 <script>
 // ══ BUILD ══
-const BUILD_VERSION = 'v3.1 · 2026-04-20';
+const BUILD_VERSION = 'v3.2 · 2026-04-20';
 
 // ══ GOOGLE PLACES CONFIG ══
 const GOOGLE_KEY = 'AIzaSyBMVZMGbJ6ETdIef0jxswglr3VEj0r8hyM';
@@ -1016,6 +1004,8 @@ function showScreen(name) {
 }
 
 async function autoLoadDiscover() {
+  // Ensure list view is active for the spinner
+  setView('list');
   document.getElementById('results-title').textContent = '📍 Near You';
   document.getElementById('results-count').textContent = 'Loading nearby…';
   document.getElementById('results-list').innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px"><div class="spinner"></div><p style="color:var(--text2);font-size:14px">Finding restaurants near you…</p></div>`;
@@ -1042,10 +1032,11 @@ async function autoLoadDiscover() {
     currentResults = results;
     selectedMood = 'nearby';
     renderResults(results);
-    // Auto switch to map view
-    setView('map');
+    // Switch to map after DOM has settled
+    setTimeout(() => setView('map'), 300);
   } catch(err) {
-    document.getElementById('results-list').innerHTML = `<div class="empty-state"><div class="empty-icon">😕</div><div class="empty-title">Couldn't load</div><div class="empty-desc">${err.message}</div></div>`;
+    document.getElementById('results-list').innerHTML = `<div class="empty-state"><div class="empty-icon">😕</div><div class="empty-title">Couldn't load</div><div class="empty-desc" style="font-size:12px;background:#f5f5f5;padding:10px;border-radius:8px;margin-top:8px;text-align:left;word-break:break-all"><strong>Error:</strong> ${err.message}</div></div>`;
+    document.getElementById('results-count').textContent = 'Error loading results';
   }
 }
 
@@ -1091,24 +1082,22 @@ document.getElementById('adventure-btn').addEventListener('click', () => {
   setTimeout(doSearchAdventurous, 400);
 });
 
-document.getElementById('surprise-btn').addEventListener('click', async () => {
-  showToast('🎰 Finding a surprise…');
-  const meters = Math.round((settings.radiusMiles || 5) * 1609.34);
-  const allTypes = [...new Set(Object.values(MOOD_CATEGORIES).flatMap(c => c.subs.flatMap(s => s.types)).filter(t => !COFFEE_TYPES.has(t)))];
-  try {
-    const data = await googlePlacesFetch(allTypes, meters);
-    const places = normalizePlaces(data.places || [], '🍽', 'restaurant')
-      .filter(r => !isUniversityVenue(r.name, r.types))
-      .filter(r => !isBlockedVenue(r.types))
-      .filter(r => !exclusions.restaurants.some(e => (e.id||e) === r.id))
-      .filter(r => !exclusions.cuisines.some(c => r.types.some(t => (BROAD_GENRE[t]||'').toLowerCase() === c.toLowerCase())));
-    if (!places.length) { showToast('No results nearby — try expanding your radius.'); return; }
-    const pick = places[Math.floor(Math.random() * places.length)];
-    const url = pick.placeId
-      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pick.name)}&query_place_id=${pick.placeId}`
-      : `https://maps.google.com/?q=${encodeURIComponent(pick.name)}`;
-    showSurpriseModal(pick.name, url);
-  } catch (err) { showToast('Could not load: ' + err.message); }
+document.getElementById('surprise-btn').addEventListener('click', () => {
+  // Pick synchronously from already-loaded results so iOS doesn't block window.open
+  const pool = currentResults.filter(r =>
+    !exclusions.restaurants.some(e => (e.id||e) === r.id)
+  );
+  if (!pool.length) {
+    showToast('Visit Discover first to load nearby restaurants 🗺');
+    showScreen('results');
+    return;
+  }
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  const url = pick.placeId
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pick.name)}&query_place_id=${pick.placeId}`
+    : `https://maps.google.com/?q=${encodeURIComponent(pick.name)}`;
+  showToast('🎰 ' + pick.name);
+  window.open(url, '_blank');
 });
 
 async function doSearchAdventurous() {
@@ -1641,12 +1630,6 @@ document.getElementById('fav-cuisine-chips').addEventListener('click', e => {
   profile.favorites = profile.favorites.includes(f) ? profile.favorites.filter(x => x !== f) : [...profile.favorites, f];
   persist(); chip.classList.toggle('selected', profile.favorites.includes(f));
 });
-function showSurpriseModal(name, url) {
-  document.getElementById('surprise-name').textContent = name;
-  document.getElementById('surprise-go-btn').href = url;
-  openModal('surprise-modal');
-}
-
 // ══ MANUAL NOTE SEARCH ══
 async function searchManualRestaurant() {
   const q = document.getElementById('manual-search-input').value.trim();
