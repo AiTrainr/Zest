@@ -99,14 +99,32 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
   margin-bottom: 10px; transition: opacity 0.15s;
 }
 .find-btn:active { opacity: 0.85; }
+.action-row-top { display: flex; gap: 8px; margin-bottom: 12px; }
 .adventure-btn {
-  width: 100%; padding: 14px; border-radius: var(--radius);
+  flex: 1; padding: 12px 8px; border-radius: var(--radius);
   background: linear-gradient(135deg, var(--teal), var(--teal-dark));
-  color: #fff; font-size: 15px; font-weight: 600;
-  margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 8px;
+  color: #fff; font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
   transition: opacity 0.15s;
 }
 .adventure-btn:active { opacity: 0.85; }
+.surprise-btn {
+  flex: 1; padding: 12px 8px; border-radius: var(--radius);
+  background: linear-gradient(135deg, #7B2FBE, #9B59B6);
+  color: #fff; font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: opacity 0.15s;
+}
+.surprise-btn:active { opacity: 0.85; }
+.sub-pill-row { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 10px; }
+.sub-pill {
+  padding: 6px 14px; border-radius: 20px; border: 1.5px solid var(--border);
+  font-size: 13px; color: var(--text2); transition: all 0.15s; background: var(--card); white-space: nowrap;
+}
+.sub-pill.selected { border-color: var(--orange); background: var(--orange-light); color: var(--orange-dark); font-weight: 600; }
+.spin-cat-pills { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 20px 8px; }
+.spin-cat-pill { padding: 5px 11px; border-radius: 20px; border: 1.5px solid var(--border); font-size: 12px; color: var(--text2); background: var(--card); transition: all 0.15s; white-space: nowrap; }
+.spin-cat-pill.off { opacity: 0.35; text-decoration: line-through; }
 
 /* PRIORITY */
 .priority-section { margin-bottom: 20px; }
@@ -409,19 +427,23 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
       </div>
       <p class="tagline">Find your flavor.</p>
 
-      <p class="section-label">What are you craving?</p>
-      <div class="mood-grid" id="mood-grid">
-        <button class="mood-chip" data-mood="burger"><span class="mood-emoji">🍔</span>Burger</button>
-        <button class="mood-chip" data-mood="pizza"><span class="mood-emoji">🍕</span>Pizza</button>
-        <button class="mood-chip" data-mood="sushi"><span class="mood-emoji">🍱</span>Sushi</button>
-        <button class="mood-chip" data-mood="healthy"><span class="mood-emoji">🥗</span>Healthy</button>
-        <button class="mood-chip" data-mood="mexican"><span class="mood-emoji">🌮</span>Mexican</button>
-        <button class="mood-chip" data-mood="chinese"><span class="mood-emoji">🥡</span>Chinese</button>
-        <button class="mood-chip" data-mood="italian"><span class="mood-emoji">🍝</span>Italian</button>
-        <button class="mood-chip" data-mood="dessert"><span class="mood-emoji">🍰</span>Dessert</button>
+      <div class="action-row-top">
+        <button class="adventure-btn" id="adventure-btn">🎲 Adventurous</button>
+        <button class="surprise-btn" id="surprise-btn">🎰 Surprise Me</button>
       </div>
 
-      <button class="adventure-btn" id="adventure-btn">🎲 I'm Feeling Adventurous</button>
+      <p class="section-label">What are you craving?</p>
+      <div class="mood-grid" id="mood-grid">
+        <button class="mood-chip" data-mood="american"><span class="mood-emoji">🍔</span>American</button>
+        <button class="mood-chip" data-mood="asian"><span class="mood-emoji">🍱</span>Asian</button>
+        <button class="mood-chip" data-mood="mexican"><span class="mood-emoji">🌮</span>Mexican</button>
+        <button class="mood-chip" data-mood="italian"><span class="mood-emoji">🍝</span>Italian</button>
+        <button class="mood-chip" data-mood="healthy"><span class="mood-emoji">🥗</span>Healthy</button>
+        <button class="mood-chip" data-mood="breakfast"><span class="mood-emoji">🍳</span>Breakfast</button>
+        <button class="mood-chip" data-mood="dessert"><span class="mood-emoji">🍰</span>Dessert</button>
+        <button class="mood-chip" data-mood="bar"><span class="mood-emoji">🍺</span>Bar/Pub</button>
+      </div>
+      <div id="sub-pill-row" class="sub-pill-row" style="display:none"></div>
 
       <p class="section-label">Sort by priority <span style="font-size:10px;color:var(--text3)">(tap ↑↓ to reorder)</span></p>
       <div class="priority-section" id="priority-list">
@@ -619,6 +641,7 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
     </div>
     <p class="tagline">Can't decide? Let fate choose.</p>
   </div>
+  <div id="spin-cat-pills" class="spin-cat-pills"></div>
   <div class="scroll-area">
     <div id="spin-empty" style="padding:40px 20px;text-align:center">
       <div style="font-size:52px;margin-bottom:12px">🎡</div>
@@ -681,6 +704,8 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
     <div style="font-size:32px;margin-bottom:8px">✍️</div>
     <div class="modal-title" id="note-modal-title">Add a Note</div>
     <div class="modal-subtitle">Great choice! Leave yourself some notes for next time.</div>
+    <label class="modal-label">Date visited</label>
+    <input type="date" class="modal-input" id="note-date">
     <label class="modal-label">What did you order?</label>
     <input type="text" class="modal-input" id="note-orders" placeholder="e.g. Double cheeseburger, sweet potato fries">
     <label class="modal-label">Your personal rating</label>
@@ -730,27 +755,74 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
 
 <script>
 // ══ BUILD ══
-const BUILD_VERSION = 'v2.3 · 2026-04-19';
+const BUILD_VERSION = 'v3.0 · 2026-04-20';
 
 // ══ GOOGLE PLACES CONFIG ══
 const GOOGLE_KEY = 'AIzaSyBMVZMGbJ6ETdIef0jxswglr3VEj0r8hyM';
-const MOOD_GOOGLE_TYPES = {
-  burger:  ['hamburger_restaurant','fast_food_restaurant'],
-  pizza:   ['pizza_restaurant'],
-  sushi:   ['sushi_restaurant','japanese_restaurant','ramen_restaurant'],
-  healthy: ['vegan_restaurant','vegetarian_restaurant','salad_shop'],
-  mexican: ['mexican_restaurant'],
-  chinese: ['chinese_restaurant'],
-  italian: ['italian_restaurant'],
-  dessert: ['ice_cream_shop','bakery','cafe','dessert_shop']
+const MOOD_CATEGORIES = {
+  american:  { emoji:'🍔', label:'American', subs:[
+    { id:'burger',   label:'Burgers',    types:['hamburger_restaurant','fast_food_restaurant','american_restaurant'] },
+    { id:'pizza',    label:'Pizza',      types:['pizza_restaurant'] },
+    { id:'bbq',      label:'BBQ',        types:['barbecue_restaurant'] },
+    { id:'sandwich', label:'Sandwiches', types:['sandwich_shop'] },
+  ]},
+  asian:     { emoji:'🍱', label:'Asian', subs:[
+    { id:'sushi',   label:'Sushi',    types:['sushi_restaurant'] },
+    { id:'chinese', label:'Chinese',  types:['chinese_restaurant'] },
+    { id:'japanese',label:'Japanese', types:['japanese_restaurant','ramen_restaurant'] },
+    { id:'thai',    label:'Thai',     types:['thai_restaurant'] },
+    { id:'korean',  label:'Korean',   types:['korean_restaurant'] },
+  ]},
+  mexican:   { emoji:'🌮', label:'Mexican', subs:[
+    { id:'mexican', label:'Mexican',      types:['mexican_restaurant'] },
+    { id:'latin',   label:'Latin',        types:['latin_american_restaurant'] },
+  ]},
+  italian:   { emoji:'🍝', label:'Italian', subs:[
+    { id:'italian',  label:'Italian', types:['italian_restaurant'] },
+    { id:'pizza_it', label:'Pizza',   types:['pizza_restaurant'] },
+  ]},
+  healthy:   { emoji:'🥗', label:'Healthy', subs:[
+    { id:'vegan',       label:'Vegan',      types:['vegan_restaurant'] },
+    { id:'vegetarian',  label:'Vegetarian', types:['vegetarian_restaurant'] },
+    { id:'salad',       label:'Salads',     types:['salad_shop'] },
+  ]},
+  breakfast: { emoji:'🍳', label:'Breakfast', subs:[
+    { id:'brunch',   label:'Brunch',   types:['breakfast_restaurant','brunch_restaurant'] },
+    { id:'coffee',   label:'Coffee',   types:['coffee_shop','cafe'] },
+    { id:'bakery_b', label:'Bakery',   types:['bakery'] },
+  ]},
+  dessert:   { emoji:'🍰', label:'Dessert', subs:[
+    { id:'icecream',    label:'Ice Cream', types:['ice_cream_shop'] },
+    { id:'dessert_shop',label:'Desserts',  types:['dessert_shop'] },
+    { id:'bakery_d',    label:'Bakery',    types:['bakery'] },
+  ]},
+  bar:       { emoji:'🍺', label:'Bar/Pub', subs:[
+    { id:'bar_pub',  label:'Bars & Pubs', types:['bar','pub','night_club'] },
+    { id:'brewery',  label:'Brewery',     types:['brewery'] },
+  ]},
 };
+
+const BROAD_GENRE = {
+  'chinese_restaurant':'Asian','japanese_restaurant':'Asian','sushi_restaurant':'Asian',
+  'thai_restaurant':'Asian','korean_restaurant':'Asian','ramen_restaurant':'Asian',
+  'vietnamese_restaurant':'Asian','asian_restaurant':'Asian',
+  'hamburger_restaurant':'American','fast_food_restaurant':'American',
+  'american_restaurant':'American','sandwich_shop':'American','barbecue_restaurant':'American',
+  'pizza_restaurant':'Pizza','italian_restaurant':'Italian',
+  'mexican_restaurant':'Mexican','latin_american_restaurant':'Mexican',
+  'greek_restaurant':'Greek','mediterranean_restaurant':'Mediterranean',
+  'indian_restaurant':'Indian','middle_eastern_restaurant':'Middle Eastern',
+  'coffee_shop':'Coffee','cafe':'Coffee',
+  'bakery':'Bakery','ice_cream_shop':'Desserts','dessert_shop':'Desserts',
+  'bar':'Bar','pub':'Bar','brewery':'Bar','night_club':'Bar',
+};
+
+const UNI_KEYWORDS = ['dining hall','dining commons','campus dining','student union','university dining','college dining','dining services','residence dining'];
+const COFFEE_TYPES = new Set(['coffee_shop','cafe']);
+
 const PRICE_MAP = {
   'PRICE_LEVEL_FREE':0,'PRICE_LEVEL_INEXPENSIVE':1,'PRICE_LEVEL_MODERATE':2,
   'PRICE_LEVEL_EXPENSIVE':3,'PRICE_LEVEL_VERY_EXPENSIVE':4
-};
-const MOOD_EMOJIS = {
-  burger:'🍔', pizza:'🍕', sushi:'🍱', healthy:'🥗',
-  mexican:'🌮', chinese:'🥡', italian:'🍝', dessert:'🍰'
 };
 
 const WHATS_NEW = [
@@ -801,7 +873,7 @@ async function googlePlacesFetch(types, radiusMeters) {
     headers: {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': GOOGLE_KEY,
-      'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.priceLevel,places.formattedAddress,places.location,places.types,places.websiteUri,places.nationalPhoneNumber'
+      'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.priceLevel,places.formattedAddress,places.location,places.types,places.websiteUri,places.nationalPhoneNumber,places.photos'
     },
     body: JSON.stringify({
       includedTypes: types,
@@ -907,19 +979,65 @@ function showScreen(name) {
 }
 
 // ══ MOOD ══
+let selectedSubMoods = [];
+
+function renderSubPills(categoryId) {
+  const row = document.getElementById('sub-pill-row');
+  const cat = MOOD_CATEGORIES[categoryId];
+  if (!cat || cat.subs.length <= 1) { row.style.display = 'none'; return; }
+  row.style.display = 'flex';
+  row.innerHTML = cat.subs.map(s =>
+    `<button class="sub-pill${selectedSubMoods.includes(s.id) ? ' selected' : ''}" data-sub="${s.id}">${s.label}</button>`
+  ).join('');
+}
+
+document.getElementById('sub-pill-row').addEventListener('click', e => {
+  const pill = e.target.closest('.sub-pill'); if (!pill) return;
+  const id = pill.dataset.sub;
+  if (selectedSubMoods.includes(id)) {
+    selectedSubMoods = selectedSubMoods.filter(x => x !== id);
+  } else {
+    selectedSubMoods.push(id);
+  }
+  renderSubPills(selectedMood);
+});
+
 document.getElementById('mood-grid').addEventListener('click', e => {
-  const chip = e.target.closest('.mood-chip');
-  if (!chip) return;
+  const chip = e.target.closest('.mood-chip'); if (!chip) return;
   document.querySelectorAll('.mood-chip').forEach(c => c.classList.remove('selected'));
   chip.classList.add('selected');
   selectedMood = chip.dataset.mood;
+  selectedSubMoods = [];
+  renderSubPills(selectedMood);
 });
 
 document.getElementById('adventure-btn').addEventListener('click', () => {
   selectedMood = 'adventurous';
+  selectedSubMoods = [];
   document.querySelectorAll('.mood-chip').forEach(c => c.classList.remove('selected'));
-  showToast('🎲 Surprise me — showing everything nearby!');
+  document.getElementById('sub-pill-row').style.display = 'none';
+  showToast('🎲 Showing everything nearby!');
   setTimeout(doSearchAdventurous, 400);
+});
+
+document.getElementById('surprise-btn').addEventListener('click', async () => {
+  showToast('🎰 Finding a surprise…');
+  const meters = Math.round((settings.radiusMiles || 5) * 1609.34);
+  const allTypes = [...new Set(Object.values(MOOD_CATEGORIES).flatMap(c => c.subs.flatMap(s => s.types)).filter(t => !COFFEE_TYPES.has(t)))];
+  try {
+    const data = await googlePlacesFetch(allTypes, meters);
+    const places = normalizePlaces(data.places || [], '🍽', 'restaurant')
+      .filter(r => !isUniversityVenue(r.name, r.types))
+      .filter(r => !exclusions.restaurants.some(e => (e.id||e) === r.id))
+      .filter(r => !exclusions.cuisines.some(c => r.types.some(t => (BROAD_GENRE[t]||'').toLowerCase() === c.toLowerCase())));
+    if (!places.length) { showToast('No results nearby — try expanding your radius.'); return; }
+    const pick = places[Math.floor(Math.random() * places.length)];
+    const url = pick.placeId
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pick.name)}&query_place_id=${pick.placeId}`
+      : `https://maps.google.com/?q=${encodeURIComponent(pick.name)}`;
+    showToast('🎰 Going to: ' + pick.name);
+    setTimeout(() => window.open(url, '_blank'), 800);
+  } catch (err) { showToast('Could not load: ' + err.message); }
 });
 
 async function doSearchAdventurous() {
@@ -929,13 +1047,25 @@ async function doSearchAdventurous() {
   document.getElementById('results-list').innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px"><div class="spinner"></div><p style="color:var(--text2);font-size:14px">Finding something new…</p></div>`;
   try {
     const meters = Math.round((settings.radiusMiles || 5) * 1609.34);
-    const allTypes = [...new Set(Object.values(MOOD_GOOGLE_TYPES).flat())];
+    // Exclude coffee from adventurous — use breakfast tab for coffee
+    const allTypes = [...new Set(Object.values(MOOD_CATEGORIES).flatMap(c => c.subs.flatMap(s => s.types)).filter(t => !COFFEE_TYPES.has(t)))];
     const data = await googlePlacesFetch(allTypes, meters);
     const excludedIds = exclusions.restaurants.map(e => e.id || e);
     const personalExcludes = notes.filter(n => n.myRating === 1).map(n => n.restaurantId);
+
+    // Build set of favorite types for boosting
+    const favTypes = new Set(profile.favorites.flatMap(f => (MOOD_CATEGORIES[f]?.subs||[]).flatMap(s => s.types)));
+
     let results = normalizePlaces(data.places || [], '🍽', 'restaurant')
-      .filter(r => !excludedIds.includes(r.id) && !personalExcludes.includes(r.id))
-      .sort((a, b) => a.distance - b.distance);
+      .filter(r => !isUniversityVenue(r.name, r.types))
+      .filter(r => !excludedIds.includes(r.id) && !personalExcludes.includes(r.id));
+
+    results.sort((a, b) => {
+      const aFav = favTypes.size && a.types.some(t => favTypes.has(t)) ? 0 : 1;
+      const bFav = favTypes.size && b.types.some(t => favTypes.has(t)) ? 0 : 1;
+      if (aFav !== bFav) return aFav - bFav;
+      return a.distance - b.distance;
+    });
     currentResults = results;
     renderResults(results);
   } catch (err) {
@@ -1020,27 +1150,38 @@ document.getElementById('find-btn').addEventListener('click', () => {
   doSearch();
 });
 
+function isUniversityVenue(name, types) {
+  const n = (name||'').toLowerCase();
+  return UNI_KEYWORDS.some(k => n.includes(k)) || (types||[]).includes('university');
+}
+
 function normalizePlaces(places, emoji, cuisine) {
   return places.map(p => {
     const lat = p.location?.latitude, lng = p.location?.longitude;
     const price = PRICE_MAP[p.priceLevel] ?? 2;
     const rating = p.rating ? Math.round(p.rating * 10) / 10 : null;
     const tags = [p.nationalPhoneNumber ? '📞 ' + p.nationalPhoneNumber : null].filter(Boolean);
+    const photoName = p.photos?.[0]?.name;
+    const photoUrl = photoName
+      ? `https://places.googleapis.com/v1/${photoName}/media?maxHeightPx=280&key=${GOOGLE_KEY}`
+      : null;
+    const name = p.displayName?.text || 'Unknown';
     return {
       id:          p.id,
-      name:        p.displayName?.text || 'Unknown',
-      cuisine:     cuisine,
-      price:       price,
-      rating:      rating,
+      name,
+      cuisine,
+      price,
+      rating,
       ratingCount: p.userRatingCount || 0,
       distance:    (lat && lng) ? distanceMiles(userLat, userLng, lat, lng) : 0,
       description: p.formattedAddress || '',
-      tags:        tags,
-      emoji:       emoji,
+      tags,
+      emoji,
+      photoUrl,
       website:     p.websiteUri || null,
       placeId:     p.id,
-      lat:         lat,
-      lng:         lng,
+      lat,
+      lng,
       types:       p.types || []
     };
   });
@@ -1049,26 +1190,37 @@ function normalizePlaces(places, emoji, cuisine) {
 async function doSearch() {
   syncPriorities();
   showScreen('results');
-  const moodLabel = selectedMood.charAt(0).toUpperCase() + selectedMood.slice(1);
-  document.getElementById('results-title').textContent = MOOD_EMOJIS[selectedMood] + ' ' + moodLabel + ' Spots';
+  const cat = MOOD_CATEGORIES[selectedMood];
+  const moodLabel = cat ? cat.label : selectedMood;
+  const moodEmoji = cat ? cat.emoji : '🍽';
+  document.getElementById('results-title').textContent = moodEmoji + ' ' + moodLabel + ' Spots';
   document.getElementById('results-count').textContent = 'Searching near you…';
-  document.getElementById('results-list').innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px"><div class="spinner"></div><p style="color:var(--text2);font-size:14px">Finding ${selectedMood} spots near you…</p></div>`;
+  document.getElementById('results-list').innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px"><div class="spinner"></div><p style="color:var(--text2);font-size:14px">Finding ${moodLabel} spots near you…</p></div>`;
 
   try {
-    if (exclusions.cuisines.includes(selectedMood)) {
-      renderResults([]);
-      return;
-    }
     const meters = Math.round((settings.radiusMiles || 5) * 1609.34);
-    const types  = MOOD_GOOGLE_TYPES[selectedMood] || ['restaurant'];
-    const data   = await googlePlacesFetch(types, meters);
 
+    // Determine which types to fetch based on sub-pill selection
+    let activeSubs = cat ? cat.subs : [];
+    if (selectedSubMoods.length > 0) activeSubs = activeSubs.filter(s => selectedSubMoods.includes(s.id));
+    const types = [...new Set(activeSubs.flatMap(s => s.types))];
+    if (!types.length) types.push('restaurant');
+
+    const data = await googlePlacesFetch(types, meters);
     const personalExcludes = notes.filter(n => n.myRating === 1).map(n => n.restaurantId);
-    const excludedIds      = exclusions.restaurants.map(e => e.id || e);
+    const excludedIds = exclusions.restaurants.map(e => e.id || e);
 
-    let results = normalizePlaces(data.places || [], MOOD_EMOJIS[selectedMood], selectedMood)
+    let results = normalizePlaces(data.places || [], moodEmoji, selectedMood)
+      .filter(r => !isUniversityVenue(r.name, r.types))
       .filter(r => !excludedIds.includes(r.id))
       .filter(r => !personalExcludes.includes(r.id));
+
+    // Apply dietary restriction filtering
+    if (profile.dietary.includes('vegan')) {
+      results = results.filter(r => r.types.includes('vegan_restaurant'));
+    } else if (profile.dietary.includes('vegetarian')) {
+      results = results.filter(r => r.types.some(t => ['vegan_restaurant','vegetarian_restaurant'].includes(t)));
+    }
 
     results.sort((a, b) => {
       for (const p of priorities) {
@@ -1121,7 +1273,7 @@ function renderResults(results) {
       : (myVisits.length ? `<div class="your-rating-badge">📓 ${myVisits.length} visit${myVisits.length > 1 ? 's' : ''} logged</div>` : '');
     return `
     <div class="restaurant-card" data-id="${r.id}">
-      <div class="card-emoji-banner"><div class="result-num">${num}</div>${r.emoji}</div>
+      <div class="card-emoji-banner" style="${r.photoUrl ? 'font-size:0;padding:0' : ''}"><div class="result-num">${num}</div>${r.photoUrl ? `<img src="${r.photoUrl}" style="width:100%;height:140px;object-fit:cover;display:block" loading="lazy" onerror="this.outerHTML='${r.emoji}'" >` : r.emoji}</div>
       <div class="card-body">
         ${yourRatingHtml}
         <div class="card-top">
@@ -1259,14 +1411,8 @@ function openNoteModal(id, name) {
   document.getElementById('note-modal-title').textContent = name;
   document.getElementById('note-orders').value = '';
   document.getElementById('note-text').value = '';
+  document.getElementById('note-date').value = new Date().toISOString().split('T')[0];
   document.querySelectorAll('.star-btn').forEach(b => b.classList.remove('lit'));
-  const existing = notes.find(n => n.restaurantId === id);
-  if (existing) {
-    document.getElementById('note-orders').value = (existing.itemsOrdered || []).join(', ');
-    document.getElementById('note-text').value = existing.notes || '';
-    noteStarRating = existing.myRating || 0;
-    updateStars(noteStarRating);
-  }
   openModal('note-modal');
 }
 document.getElementById('star-rating').addEventListener('click', e => {
@@ -1285,7 +1431,7 @@ document.getElementById('note-save-btn').addEventListener('click', () => {
   const text   = document.getElementById('note-text').value.trim();
   const entry  = {
     restaurantId: currentRestaurantId, restaurantName: r.name,
-    dateVisited: new Date().toISOString().split('T')[0],
+    dateVisited: document.getElementById('note-date').value || new Date().toISOString().split('T')[0],
     itemsOrdered: orders ? orders.split(',').map(s => s.trim()) : [],
     myRating: noteStarRating, notes: text
   };
@@ -1325,17 +1471,36 @@ function renderNotes() {
   list.innerHTML = sortedGroups.map(([rid, g]) => {
     const weighted = getWeightedRating(rid);
     const visits = g.visits.slice().sort((a,b) => b.dateVisited.localeCompare(a.dateVisited));
-    return `<div class="note-card">
-      <div class="note-restaurant">${g.name}</div>
+    return `<div class="note-card" style="position:relative;overflow:hidden" data-rid="${rid}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div class="note-restaurant">${g.name}</div>
+        <button style="font-size:18px;color:var(--text3);padding:0 4px;flex-shrink:0" onclick="deleteNoteGroup('${rid}')">🗑</button>
+      </div>
       ${weighted ? `<div class="note-stars">⭐ Avg rating: ${weighted}/5 <span style="color:var(--text3);font-size:11px">(${visits.length} visit${visits.length>1?'s':''})</span></div>` : ''}
-      ${visits.map(v => `
-        <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px">
-          <div class="note-date">📅 ${v.dateVisited} ${'⭐'.repeat(v.myRating||0)}</div>
-          ${v.itemsOrdered?.length ? `<div class="note-items">🍽 ${v.itemsOrdered.join(', ')}</div>` : ''}
-          ${v.notes ? `<div class="note-body">"${v.notes}"</div>` : ''}
+      ${visits.map((v, vi) => `
+        <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="flex:1">
+            <div class="note-date">📅 ${v.dateVisited} ${'⭐'.repeat(v.myRating||0)}</div>
+            ${v.itemsOrdered?.length ? `<div class="note-items">🍽 ${v.itemsOrdered.join(', ')}</div>` : ''}
+            ${v.notes ? `<div class="note-body">"${v.notes}"</div>` : ''}
+          </div>
+          ${visits.length > 1 ? `<button style="font-size:14px;color:var(--text3);padding:0 4px;flex-shrink:0" onclick="deleteNoteVisit('${rid}',${vi})">✕</button>` : ''}
         </div>`).join('')}
     </div>`;
   }).join('');
+}
+
+function deleteNoteGroup(rid) {
+  if (!confirm('Delete all visits for this restaurant?')) return;
+  notes = notes.filter(n => n.restaurantId !== rid);
+  persist(); renderNotes();
+}
+function deleteNoteVisit(rid, visIdx) {
+  const sorted = notes.filter(n => n.restaurantId === rid).sort((a,b) => b.dateVisited.localeCompare(a.dateVisited));
+  const target = sorted[visIdx];
+  if (!target) return;
+  notes = notes.filter(n => n !== target);
+  persist(); renderNotes();
 }
 
 // ══ PROFILE SCREEN ══
@@ -1438,6 +1603,27 @@ function showToast(msg) {
 // ══ SPIN WHEEL ══
 let wheelAllItems = [];  // all loaded, never mutated
 let eliminatedIds  = new Set();
+let spinCatEnabled = Object.fromEntries(Object.keys(MOOD_CATEGORIES).map(k => [k, true]));
+
+function renderSpinCatPills() {
+  const h = new Date().getHours() + new Date().getMinutes()/60;
+  const isBreakfastTime = h < 11.5;
+  const isCoffeeTime = h < 17;
+  const el = document.getElementById('spin-cat-pills');
+  if (!el) return;
+  el.innerHTML = Object.entries(MOOD_CATEGORIES).map(([key, cat]) => {
+    // Auto-grey breakfast after 11:30, coffee after 5pm
+    if (key === 'breakfast' && !isBreakfastTime) spinCatEnabled[key] = false;
+    if (key === 'bar') spinCatEnabled[key] = spinCatEnabled[key] ?? true;
+    const on = spinCatEnabled[key] !== false;
+    return `<button class="spin-cat-pill${on ? '' : ' off'}" data-cat="${key}" onclick="toggleSpinCat('${key}')">${cat.emoji} ${cat.label}</button>`;
+  }).join('');
+}
+
+function toggleSpinCat(key) {
+  spinCatEnabled[key] = !spinCatEnabled[key];
+  renderSpinCatPills();
+}
 let selectedWheelItem = null;
 let spinAngle = 0, spinVelocity = 0, isSpinning = false;
 let _lastTickSeg = -1;
@@ -1468,12 +1654,21 @@ function playTick(velocity) {
 }
 
 async function loadSpinWheel() {
+  renderSpinCatPills();
   const btn = document.getElementById('spin-reset-btn');
   if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
   try {
     const meters = Math.round((settings.radiusMiles || 5) * 1609.34);
-    const data = await googlePlacesFetch(['restaurant','fast_food_restaurant','cafe'], meters);
-    let places = normalizePlaces(data.places || [], '🍽', 'restaurant');
+    // Build types from enabled spin categories only
+    const enabledTypes = [...new Set(
+      Object.entries(MOOD_CATEGORIES)
+        .filter(([key]) => spinCatEnabled[key] !== false)
+        .flatMap(([, cat]) => cat.subs.flatMap(s => s.types))
+    )];
+    const types = enabledTypes.length ? enabledTypes : ['restaurant'];
+    const data = await googlePlacesFetch(types, meters);
+    let places = normalizePlaces(data.places || [], '🍽', 'restaurant')
+      .filter(r => !isUniversityVenue(r.name, r.types));
     for (let i = places.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [places[i], places[j]] = [places[j], places[i]];
@@ -1625,14 +1820,17 @@ function spinNotThisTime() {
 
 function spinNotCategory() {
   if (!selectedWheelItem) return;
-  const refType = getBestType(selectedWheelItem);
-  const label = typeLabel(refType);
+  // Use broad genre for grouping, not specific type
+  const refBroad = (selectedWheelItem.types || []).map(t => BROAD_GENRE[t]).find(Boolean)
+    || typeLabel(getBestType(selectedWheelItem));
   wheelAllItems.forEach(r => {
     if (eliminatedIds.has(r.id)) return;
-    if (getBestType(r) === refType) { r._elimReason = 'not ' + label; eliminatedIds.add(r.id); }
+    const rBroad = (r.types || []).map(t => BROAD_GENRE[t]).find(Boolean)
+      || typeLabel(getBestType(r));
+    if (rBroad === refBroad) { r._elimReason = 'not ' + refBroad; eliminatedIds.add(r.id); }
   });
   document.getElementById('spin-result-card').style.display = 'none';
-  showToast('Removed all ' + label + ' 🚫');
+  showToast('Removed all ' + refBroad + ' 🚫');
   checkWheelDone();
 }
 
@@ -1640,6 +1838,7 @@ function spinNotCategory() {
 initLocation();
 checkWhatsNew();
 renderProfile();
+renderSpinCatPills();
 document.getElementById('build-version').textContent = '🍋 Zest ' + BUILD_VERSION;
 
 if ('serviceWorker' in navigator) {
