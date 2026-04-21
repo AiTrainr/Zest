@@ -778,7 +778,7 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
 
 <script>
 // ══ BUILD ══
-const BUILD_VERSION = 'v3.2 · 2026-04-20';
+const BUILD_VERSION = 'v3.3 · 2026-04-20';
 
 // ══ GOOGLE PLACES CONFIG ══
 const GOOGLE_KEY = 'AIzaSyBMVZMGbJ6ETdIef0jxswglr3VEj0r8hyM';
@@ -995,12 +995,14 @@ function distanceMiles(lat1, lon1, lat2, lon2) {
 }
 
 // ══ SCREENS ══
-function showScreen(name) {
+// autoLoad=false when called by doSearch/doSearchAdventurous to prevent race condition
+function showScreen(name, autoLoad = true) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
   if (name === 'notes') renderNotes();
   if (name === 'profile') renderProfile();
-  if (name === 'results' && !currentResults.length) autoLoadDiscover();
+  if (name === 'home') refreshSurprisePick();
+  if (name === 'results' && autoLoad && !currentResults.length) autoLoadDiscover();
 }
 
 async function autoLoadDiscover() {
@@ -1032,7 +1034,7 @@ async function autoLoadDiscover() {
     currentResults = results;
     selectedMood = 'nearby';
     renderResults(results);
-    // Switch to map after DOM has settled
+    refreshSurprisePick();
     setTimeout(() => setView('map'), 300);
   } catch(err) {
     document.getElementById('results-list').innerHTML = `<div class="empty-state"><div class="empty-icon">😕</div><div class="empty-title">Couldn't load</div><div class="empty-desc" style="font-size:12px;background:#f5f5f5;padding:10px;border-radius:8px;margin-top:8px;text-align:left;word-break:break-all"><strong>Error:</strong> ${err.message}</div></div>`;
@@ -1082,26 +1084,37 @@ document.getElementById('adventure-btn').addEventListener('click', () => {
   setTimeout(doSearchAdventurous, 400);
 });
 
+// Pre-assign a random pick so the button is instant with no async step
+let surprisePick = null;
+function refreshSurprisePick() {
+  const pool = currentResults.filter(r => !exclusions.restaurants.some(e => (e.id||e) === r.id));
+  surprisePick = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+  const btn = document.getElementById('surprise-btn');
+  if (btn) btn.title = surprisePick ? surprisePick.name : '';
+}
+
 document.getElementById('surprise-btn').addEventListener('click', () => {
-  // Pick synchronously from already-loaded results so iOS doesn't block window.open
-  const pool = currentResults.filter(r =>
-    !exclusions.restaurants.some(e => (e.id||e) === r.id)
-  );
-  if (!pool.length) {
-    showToast('Visit Discover first to load nearby restaurants 🗺');
+  if (!surprisePick) {
+    showToast('Opening Discover to load nearby restaurants… 🗺');
     showScreen('results');
     return;
   }
-  const pick = pool[Math.floor(Math.random() * pool.length)];
-  const url = pick.placeId
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pick.name)}&query_place_id=${pick.placeId}`
-    : `https://maps.google.com/?q=${encodeURIComponent(pick.name)}`;
-  showToast('🎰 ' + pick.name);
-  window.open(url, '_blank');
+  const url = surprisePick.placeId
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(surprisePick.name)}&query_place_id=${surprisePick.placeId}`
+    : `https://maps.google.com/?q=${encodeURIComponent(surprisePick.name)}`;
+  showToast('🎰 ' + surprisePick.name);
+  // Use anchor-click (same as card "Take me there" buttons) — avoids iOS PWA white-screen
+  const a = document.createElement('a');
+  a.href = url; a.target = '_blank'; a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  // Re-randomize for next time
+  setTimeout(refreshSurprisePick, 500);
 });
 
 async function doSearchAdventurous() {
-  showScreen('results');
+  showScreen('results', false);
   document.getElementById('results-title').textContent = '🎲 Adventurous';
   document.getElementById('results-count').textContent = 'Searching near you…';
   document.getElementById('results-list').innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px"><div class="spinner"></div><p style="color:var(--text2);font-size:14px">Finding something new…</p></div>`;
@@ -1253,7 +1266,7 @@ function normalizePlaces(places, emoji, cuisine) {
 
 async function doSearch() {
   syncPriorities();
-  showScreen('results');
+  showScreen('results', false);
   const cat = MOOD_CATEGORIES[selectedMood];
   const moodLabel = cat ? cat.label : selectedMood;
   const moodEmoji = cat ? cat.emoji : '🍽';
