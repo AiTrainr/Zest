@@ -531,7 +531,12 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
 <!-- ══ NOTES SCREEN ══ -->
 <div class="screen" id="screen-notes">
   <div class="page-header" style="padding-bottom:12px;flex-shrink:0">
-    <div class="logo-row"><span style="font-size:22px">📓</span><span style="font-family:Fraunces,serif;font-size:24px;font-weight:700">My Notes</span></div>
+    <div class="logo-row" style="justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:22px">📓</span><span style="font-family:Fraunces,serif;font-size:24px;font-weight:700">My Notes</span>
+      </div>
+      <button onclick="openModal('manual-search-modal')" style="background:var(--orange);color:#fff;border-radius:var(--radius-sm);padding:8px 14px;font-size:13px;font-weight:600">+ Log Visit</button>
+    </div>
     <p class="tagline">Your personal food diary</p>
   </div>
   <div class="scroll-area"><div class="notes-list" id="notes-list"></div></div>
@@ -613,8 +618,12 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
         <div class="profile-card-title">🚫 My Exclusions</div>
         <div id="exclusions-list"><p style="font-size:13px;color:var(--text3)">No exclusions yet. Tap "Not for me" on any restaurant.</p></div>
       </div>
-      <button class="export-btn" id="export-btn">📤 Export My Data</button>
-      <p style="font-size:11px;color:var(--text3);text-align:center;margin-top:8px">Stored locally on your device. Export saves a copy to Files.</p>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="export-btn" id="export-btn" style="flex:1;margin-top:0">📤 Export</button>
+        <button class="export-btn" id="import-btn" style="flex:1;margin-top:0">📥 Import</button>
+      </div>
+      <input type="file" id="import-file-input" accept=".json" style="display:none">
+      <p style="font-size:11px;color:var(--text3);text-align:center;margin-top:8px">Stored locally on your device. Export/import to back up or restore.</p>
       <p id="build-version" style="font-size:11px;color:var(--text3);text-align:center;margin-top:20px;padding-top:12px;border-top:1px solid var(--border)">🍋 Zest</p>
     </div>
   </div>
@@ -751,11 +760,37 @@ button { cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; back
   </div>
 </div>
 
+<!-- ══ SURPRISE MODAL ══ -->
+<div class="modal-overlay" id="surprise-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div style="font-size:36px;text-align:center;margin-bottom:8px">🎰</div>
+    <div class="modal-title" style="text-align:center" id="surprise-name">—</div>
+    <div class="modal-subtitle" style="text-align:center">Your random pick is ready!</div>
+    <a class="modal-btn" id="surprise-go-btn" href="" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">🗺 Take me there</a>
+    <button class="modal-btn-cancel" onclick="closeModal('surprise-modal')">Maybe later</button>
+  </div>
+</div>
+
+<!-- ══ MANUAL NOTE SEARCH MODAL ══ -->
+<div class="modal-overlay" id="manual-search-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🔍 Search a Restaurant</div>
+    <div class="modal-subtitle">Find a restaurant to log a visit manually</div>
+    <input class="modal-input" id="manual-search-input" type="text" placeholder="e.g. Nobu, In-N-Out, Olive Garden…" autocomplete="off"
+      onkeydown="if(event.key==='Enter')searchManualRestaurant()">
+    <button class="modal-btn" onclick="searchManualRestaurant()">Search 🔍</button>
+    <div id="manual-search-results" style="margin-top:12px"></div>
+    <button class="modal-btn-cancel" onclick="closeModal('manual-search-modal')" style="margin-top:8px">Cancel</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 // ══ BUILD ══
-const BUILD_VERSION = 'v3.0 · 2026-04-20';
+const BUILD_VERSION = 'v3.1 · 2026-04-20';
 
 // ══ GOOGLE PLACES CONFIG ══
 const GOOGLE_KEY = 'AIzaSyBMVZMGbJ6ETdIef0jxswglr3VEj0r8hyM';
@@ -819,6 +854,7 @@ const BROAD_GENRE = {
 
 const UNI_KEYWORDS = ['dining hall','dining commons','campus dining','student union','university dining','college dining','dining services','residence dining'];
 const COFFEE_TYPES = new Set(['coffee_shop','cafe']);
+const BLOCKED_TYPES = new Set(['grocery_store','supermarket','convenience_store','gas_station','pharmacy','hardware_store','clothing_store','department_store','home_goods_store','furniture_store','electronics_store']);
 
 const PRICE_MAP = {
   'PRICE_LEVEL_FREE':0,'PRICE_LEVEL_INEXPENSIVE':1,'PRICE_LEVEL_MODERATE':2,
@@ -976,6 +1012,41 @@ function showScreen(name) {
   document.getElementById('screen-' + name).classList.add('active');
   if (name === 'notes') renderNotes();
   if (name === 'profile') renderProfile();
+  if (name === 'results' && !currentResults.length) autoLoadDiscover();
+}
+
+async function autoLoadDiscover() {
+  document.getElementById('results-title').textContent = '📍 Near You';
+  document.getElementById('results-count').textContent = 'Loading nearby…';
+  document.getElementById('results-list').innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px"><div class="spinner"></div><p style="color:var(--text2);font-size:14px">Finding restaurants near you…</p></div>`;
+  try {
+    const meters = Math.round((settings.radiusMiles || 5) * 1609.34);
+    const allTypes = [...new Set(Object.values(MOOD_CATEGORIES).flatMap(c => c.subs.flatMap(s => s.types)).filter(t => !COFFEE_TYPES.has(t)))];
+    const data = await googlePlacesFetch(allTypes, meters);
+    const excludedIds = exclusions.restaurants.map(e => e.id || e);
+    const personalExcludes = notes.filter(n => n.myRating === 1).map(n => n.restaurantId);
+    syncPriorities();
+    let results = normalizePlaces(data.places || [], '🍽', 'restaurant')
+      .filter(r => !isUniversityVenue(r.name, r.types))
+      .filter(r => !isBlockedVenue(r.types))
+      .filter(r => !excludedIds.includes(r.id) && !personalExcludes.includes(r.id));
+    results.sort((a, b) => {
+      for (const p of priorities) {
+        const va = p.key === 'cost' ? a.price : p.key === 'rating' ? (a.rating||0) : a.distance;
+        const vb = p.key === 'cost' ? b.price : p.key === 'rating' ? (b.rating||0) : b.distance;
+        const cmp = p.dir === 'asc' ? va - vb : vb - va;
+        if (cmp !== 0) return cmp;
+      }
+      return 0;
+    });
+    currentResults = results;
+    selectedMood = 'nearby';
+    renderResults(results);
+    // Auto switch to map view
+    setView('map');
+  } catch(err) {
+    document.getElementById('results-list').innerHTML = `<div class="empty-state"><div class="empty-icon">😕</div><div class="empty-title">Couldn't load</div><div class="empty-desc">${err.message}</div></div>`;
+  }
 }
 
 // ══ MOOD ══
@@ -1028,6 +1099,7 @@ document.getElementById('surprise-btn').addEventListener('click', async () => {
     const data = await googlePlacesFetch(allTypes, meters);
     const places = normalizePlaces(data.places || [], '🍽', 'restaurant')
       .filter(r => !isUniversityVenue(r.name, r.types))
+      .filter(r => !isBlockedVenue(r.types))
       .filter(r => !exclusions.restaurants.some(e => (e.id||e) === r.id))
       .filter(r => !exclusions.cuisines.some(c => r.types.some(t => (BROAD_GENRE[t]||'').toLowerCase() === c.toLowerCase())));
     if (!places.length) { showToast('No results nearby — try expanding your radius.'); return; }
@@ -1035,8 +1107,7 @@ document.getElementById('surprise-btn').addEventListener('click', async () => {
     const url = pick.placeId
       ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pick.name)}&query_place_id=${pick.placeId}`
       : `https://maps.google.com/?q=${encodeURIComponent(pick.name)}`;
-    showToast('🎰 Going to: ' + pick.name);
-    setTimeout(() => window.open(url, '_blank'), 800);
+    showSurpriseModal(pick.name, url);
   } catch (err) { showToast('Could not load: ' + err.message); }
 });
 
@@ -1058,6 +1129,7 @@ async function doSearchAdventurous() {
 
     let results = normalizePlaces(data.places || [], '🍽', 'restaurant')
       .filter(r => !isUniversityVenue(r.name, r.types))
+      .filter(r => !isBlockedVenue(r.types))
       .filter(r => !excludedIds.includes(r.id) && !personalExcludes.includes(r.id));
 
     results.sort((a, b) => {
@@ -1154,6 +1226,9 @@ function isUniversityVenue(name, types) {
   const n = (name||'').toLowerCase();
   return UNI_KEYWORDS.some(k => n.includes(k)) || (types||[]).includes('university');
 }
+function isBlockedVenue(types) {
+  return (types||[]).some(t => BLOCKED_TYPES.has(t));
+}
 
 function normalizePlaces(places, emoji, cuisine) {
   return places.map(p => {
@@ -1212,6 +1287,7 @@ async function doSearch() {
 
     let results = normalizePlaces(data.places || [], moodEmoji, selectedMood)
       .filter(r => !isUniversityVenue(r.name, r.types))
+      .filter(r => !isBlockedVenue(r.types))
       .filter(r => !excludedIds.includes(r.id))
       .filter(r => !personalExcludes.includes(r.id));
 
@@ -1242,8 +1318,9 @@ async function doSearch() {
 
 // ══ RENDER RESULTS ══
 function renderResults(results) {
-  const label = selectedMood ? selectedMood.charAt(0).toUpperCase() + selectedMood.slice(1) : 'All';
-  document.getElementById('results-title').textContent = label + ' Spots';
+  const cat = MOOD_CATEGORIES[selectedMood];
+  const label = cat ? cat.emoji + ' ' + cat.label : selectedMood === 'nearby' ? '📍 Near You' : selectedMood === 'adventurous' ? '🎲 Adventurous' : '🍽 Results';
+  document.getElementById('results-title').textContent = label;
   document.getElementById('results-count').textContent = results.length
     ? results.length + ' restaurants found'
     : 'No results — try another mood!';
@@ -1288,7 +1365,7 @@ function renderResults(results) {
         <div class="card-tags">${r.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
         <div class="card-actions">
           <button class="btn-reject" data-rid="${r.id}">🚫 Not for me</button>
-          <a class="btn-maps" href="${mapsUrl}" target="_blank" rel="noopener">🗺 Maps</a>
+          <a class="btn-maps" href="${mapsUrl}" target="_blank" rel="noopener">🗺 Take me there</a>
           <button class="btn-note" data-rid="${r.id}" data-rname="${r.name.replace(/"/g,'&quot;')}">✍️ I went here</button>
         </div>
       </div>
@@ -1564,12 +1641,96 @@ document.getElementById('fav-cuisine-chips').addEventListener('click', e => {
   profile.favorites = profile.favorites.includes(f) ? profile.favorites.filter(x => x !== f) : [...profile.favorites, f];
   persist(); chip.classList.toggle('selected', profile.favorites.includes(f));
 });
+function showSurpriseModal(name, url) {
+  document.getElementById('surprise-name').textContent = name;
+  document.getElementById('surprise-go-btn').href = url;
+  openModal('surprise-modal');
+}
+
+// ══ MANUAL NOTE SEARCH ══
+async function searchManualRestaurant() {
+  const q = document.getElementById('manual-search-input').value.trim();
+  if (!q) return;
+  const el = document.getElementById('manual-search-results');
+  el.innerHTML = '<div style="text-align:center;padding:12px;color:var(--text2)">Searching…</div>';
+  try {
+    const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': GOOGLE_KEY,
+        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.priceLevel,places.types,places.photos'
+      },
+      body: JSON.stringify({
+        textQuery: q,
+        maxResultCount: 5,
+        locationBias: { circle: { center: { latitude: userLat, longitude: userLng }, radius: 50000 } }
+      })
+    });
+    const data = await res.json();
+    const places = data.places || [];
+    el.innerHTML = places.length
+      ? places.map((p, i) => `<div class="location-result-item" data-idx="${i}"
+          data-id="${p.id}"
+          data-name="${(p.displayName?.text||'').replace(/"/g,'&quot;')}"
+          data-addr="${(p.formattedAddress||'').replace(/"/g,'&quot;')}"
+          data-rating="${p.rating||''}"
+          data-price="${p.priceLevel||''}">
+          🍽 <strong>${p.displayName?.text||'?'}</strong><br>
+          <span style="font-size:11px;color:var(--text2)">${p.formattedAddress||''}</span>
+        </div>`).join('')
+      : '<div style="text-align:center;padding:12px;color:var(--text2)">No results found — try a different name.</div>';
+  } catch(err) {
+    el.innerHTML = `<div style="text-align:center;padding:12px;color:var(--text2)">Search failed: ${err.message}</div>`;
+  }
+}
+
+document.getElementById('manual-search-results').addEventListener('click', e => {
+  const item = e.target.closest('.location-result-item');
+  if (!item) return;
+  const fakePlace = {
+    id: item.dataset.id,
+    name: item.dataset.name,
+    description: item.dataset.addr,
+    price: 2, rating: parseFloat(item.dataset.rating)||null,
+    ratingCount: 0, distance: 0, tags: [], emoji: '🍽',
+    photoUrl: null, website: null, placeId: item.dataset.id, lat: null, lng: null, types: []
+  };
+  // Push into currentResults if not already there so note save works
+  if (!currentResults.find(r => r.id === fakePlace.id)) currentResults.push(fakePlace);
+  closeModal('manual-search-modal');
+  document.getElementById('manual-search-input').value = '';
+  document.getElementById('manual-search-results').innerHTML = '';
+  openNoteModal(fakePlace.id, fakePlace.name);
+});
+
 document.getElementById('export-btn').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify({ exportDate: new Date().toISOString(), profile, exclusions, notes, settings }, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = 'Zest_UserData.json'; a.click();
   URL.revokeObjectURL(url);
   showToast('📤 Data exported! Save it to Files.');
+});
+document.getElementById('import-btn').addEventListener('click', () => {
+  document.getElementById('import-file-input').click();
+});
+document.getElementById('import-file-input').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => {
+    try {
+      const d = JSON.parse(evt.target.result);
+      if (d.notes)      notes      = d.notes;
+      if (d.exclusions) exclusions = d.exclusions;
+      if (d.profile)    profile    = d.profile;
+      if (d.settings)   settings   = d.settings;
+      if (!settings.radiusMiles) settings.radiusMiles = 5;
+      persist(); renderProfile(); renderNotes();
+      showToast('📥 Data imported successfully!');
+    } catch { showToast('Import failed — invalid file.'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
 });
 
 // ══ WHAT'S NEW ══
@@ -1668,7 +1829,8 @@ async function loadSpinWheel() {
     const types = enabledTypes.length ? enabledTypes : ['restaurant'];
     const data = await googlePlacesFetch(types, meters);
     let places = normalizePlaces(data.places || [], '🍽', 'restaurant')
-      .filter(r => !isUniversityVenue(r.name, r.types));
+      .filter(r => !isUniversityVenue(r.name, r.types))
+      .filter(r => !isBlockedVenue(r.types));
     for (let i = places.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [places[i], places[j]] = [places[j], places[i]];
